@@ -92,7 +92,7 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
 ## Load data
 
 ```{r load_data}
-path_ <- 'C:/Users/juanb/OneDrive/GMBD/STATISTICAL PROGRAMMING - R (MBD-EN-BL2020J-1_32R369_316435)/Group assignment/project/'
+path_ <- '~/gmbd_r/data'
 
 data_solar <- readRDS(file = file.path(path_, 'solar_dataset.RData'))
 data_station <- fread(file = file.path(path_, 'station_info.csv'))
@@ -801,6 +801,3 @@ p_boxplot <- ggplot(data = data, aes(x = Value)) +
 p_histogram_density
 p_boxplot
 ```
-
-
-Test 10:58
