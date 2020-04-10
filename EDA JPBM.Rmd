@@ -754,8 +754,8 @@ data <- data_add[, ..data_add_col]
 
 m_ <- 5
 # df2 <- mice(data, m=m_, maxit=10, meth='pmm', seed=500)
-# saveRDS(df2, file.path(path_, 'storage', 'df2.rds'))
-df2 <- readRDS(file.path(path_, 'storage', 'df2.rds'))
+# saveRDS(df2, file.path(path_, 'storage', 'data_add_mice.rds'))
+df2 <- readRDS(file.path(path_, 'storage', 'data_add_mice.rds'))
 # summary(df2)
 
 # Average of all the Multivariate Imputation
