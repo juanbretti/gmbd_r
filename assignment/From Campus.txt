@@ -1,0 +1,30 @@
+https://campus.ie.edu/webapps/assignment/uploadAssignment?content_id=_2486233_1&course_id=_114320331_1&group_id=&mode=view
+2020-03-15 22:28:52
+
+UPLOAD ASSIGNMENT: WORKGROUP ASSIGNMENT
+ 
+   ASSIGNMENT INFORMATION
+Due Date
+Saturday, May 23, 2020
+12:30 AM
+Points Possible
+10
+You can find four files for this project:
+
+workgroup_project.pdf: Description, instructions, and evaluation criteria for the project.
+solar_contest.rds: Dataset to be used in the project.
+station_info.csv: File with name, latitude, longitude, and elevation of each of the 98 stations.
+additional_variables.rds: 100 new variables to optionally add to the ones in solar_contest.rds. All these variables correspond to real Numerical Weather Prediction, NWP, values. As in solar_contest.rds, each row corresponds to a particular day. 
+Submission Due Date: 2020-05-22 (included)
+
+
+project.zip
+By submitting this paper, you agree: (1) that you are submitting your paper to be used and stored as part of the SafeAssign™ services in accordance with the Blackboard Privacy Policy; (2) that your institution may use your paper in accordance with your institution's policies; and (3) that your use of SafeAssign will be without recourse against Blackboard Inc. and its affiliates.
+Institution Release Statement
+   ASSIGNMENT SUBMISSION
+Text SubmissionWrite Submission
+Attach Files
+SafeAssign accepts files in .doc, .docx, .docm, .ppt, .pptx, .odt, .txt, .rtf, .pdf, and .html file formats only. Files of any other format will not be checked through SafeAssign.
+Last ModifiedSunday, March 15, 2020 10:27:56 PM CET
+Group NameGROUP E
+Last Activity Recorded JUAN PEDRO BRETTI MANDARANO ( Mar 15, 2020 10:27:56 PM )
