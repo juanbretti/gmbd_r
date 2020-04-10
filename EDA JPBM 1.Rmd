@@ -801,7 +801,3 @@ p_boxplot <- ggplot(data = data, aes(x = Value)) +
 p_histogram_density
 p_boxplot
 ```
-
-
-Test
-4
