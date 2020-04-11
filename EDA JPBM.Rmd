@@ -172,18 +172,23 @@ https://cran.r-project.org/web/packages/outliers/outliers.pdf
 
 There is only one row that could be considered outliers. I don't see the need of removing outliers.
 
-```{r}
-data_solar_col_produ_scores <- lapply(data_solar_col_produ, function(x) scores(data_solar_train[[x]], type = 'z'))
-names(data_solar_col_produ_scores) <- data_solar_col_produ
-skim(data_solar_col_produ_scores)
+#### Solar data
 
-# summary(unlist(data_solar_col_produ_scores))
-hist(unlist(data_solar_col_produ_scores))
+```{r}
+data_solar_produ_scores <- lapply(data_solar_col_produ, function(x) scores(data_solar_train[[x]], type = 'z'))
+names(data_solar_produ_scores) <- data_solar_col_produ
+skim(data_solar_produ_scores)
+
+# summary(unlist(data_solar_produ_scores))
+hist(unlist(data_solar_produ_scores))
 
 table(
-  abs(unlist(data_solar_col_produ_scores))>=3
+  abs(unlist(data_solar_produ_scores))>=3
 )
 ```
+
+#### Additional data
+First, need to complete the data set to be able to use 'outliers()'.
 
 ## Solar dataset
 
@@ -784,6 +789,28 @@ df2 <- readRDS(file.path(path_, 'storage', 'data_add_mice.rds'))
 df3 <- 0
 for (i in 1:m_) df3 <- df3 + complete(df2, i)
 df3 <- df3/m_
+```
+
+## Outliers
+If I remove outliers before doing 'mice', I will remove all the row or will have columns with different lenght/nrows.
+Doing outliers removal, after 'mice', means that 'mice' was trained with the outliers.
+
+```{r}
+f_scores <- function(x) {
+  data <- data_add[[x]]
+  data <- data[is.na(data)]
+  res <- scores(data, type = 'z')
+  return(res)
+}
+
+data_add_scores <- lapply(data_add_col, f_scores)
+names(data_add_scores) <- data_add_col
+
+skim(data_add_scores)
+hist(unlist(data_add_scores))
+table(
+  abs(unlist(data_add_scores))>=3
+)
 ```
 
 ## Principal component analysis
