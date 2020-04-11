@@ -1,19 +1,7 @@
----
-title: "Programming R Workgroup Project"
-author: "Group E"
-date: "3/20/2020"
-output: html_document
----
+# Preparation ----
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
+## Load libraries ----
 
-# Preparation
-
-## Load libraries
-
-```{r load_libraries, message=FALSE}
 # General porpuse
 library(tidyverse)
 library(data.table)
@@ -35,13 +23,14 @@ library(leaflet.extras)
 library(forecast)
 library(caret)
 library(mice)
-```
 
-## Helper functions
+# Parallel
+library(foreach)
+library(doParallel)
 
-http://www.cookbook-r.com/Graphs/Multiple_graphs_on_one_page_(ggplot2)/
+## Helper functions ----
 
-```{r}
+# http://www.cookbook-r.com/Graphs/Multiple_graphs_on_one_page_(ggplot2)/
 # Multiple plot function
 #
 # ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
@@ -87,21 +76,17 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
     }
   }
 }
-```
 
-## Load data
+## Load data ----
 
-```{r load_data}
 path_ <- '~/gmbd_r'
 
 data_solar <- readRDS(file = file.path(path_, 'data', 'solar_dataset.RData'))
 data_station <- fread(file = file.path(path_, 'data', 'station_info.csv'))
 data_add <- readRDS(file = file.path(path_, 'data', 'additional_variables.RData'))
-```
 
-## Transform data
+## Transform data ----
 
-```{r}
 # Source dataset
 data_solar <- data_solar[j = Date2 := as.Date(x = Date, format = "%Y%m%d")]
 
@@ -134,20 +119,16 @@ data_add <- data_add %>%
 # Columns defined from the enunciate
 data_add_col <- colnames(data_add)[2:101]
 data_add_col_dates <- setdiff(colnames(data_add), data_add_col)
-```
 
-```{r}
 data_solar_train <- data_solar[i = 1:5113]
 data_solar_test <- data_solar[i = 5114:nrow(data_solar), j = .SD, .SDcols = c(data_solar_col_dates, data_solar_col_predi)]
-```
 
-# Overview: Data structure and content
+# Overview: Data structure and content ----
 
-## General overview
+## General overview ----
 
 ### NA check
 
-```{r}
 f_check_na <- function(x) {
   count_na <- sum(is.na(x))
   count_total <- dim(x)[1]*dim(x)[2]
@@ -161,44 +142,34 @@ f_check_na(data_solar_train)
 f_check_na(data_solar_test)
 f_check_na(data_station)
 f_check_na(data_add)
-```
 
-## Solar dataset
+## Solar dataset ----
 
 ### Training
 
-```{r, eval=FALSE}
 skim(data_solar_train)
 glimpse(data_solar_train)
-```
 
 ### Testing
 
-```{r, eval=FALSE}
 skim(data_solar_test)
 glimpse(data_solar_test)
-```
 
 ## Statios informaiton
 
-```{r, eval=FALSE}
 skim(data_station)
 glimpse(data_station)
-```
 
 ## Additional information
 
-```{r, eval=FALSE}
 skim(data_add)
 glimpse(data_add)
-```
 
-# Descriptive plots
-Weather stations sorted by volume
+# Descriptive plots ----
 
-## Principal weather stations
+## Principal weather stations ----
+# Weather stations sorted by volume
 
-```{r}
 principal_weather_station <- data_solar_train %>% 
   pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>% 
   group_by(WeatherStation) %>% 
@@ -206,9 +177,7 @@ principal_weather_station <- data_solar_train %>%
   arrange(desc(ValueSum)) %>% 
   select(WeatherStation) %>% 
   pull()
-```
 
-```{r}
 top_ <- 7
 
 p_top <- data_solar_train %>% 
@@ -236,11 +205,9 @@ p_bottom <- data_solar_train %>%
   labs(x = 'Weather Station', y = 'Production in million', title = 'Bottom')
 
 multiplot(p_top, p_bottom)
-```
 
-## Rank position change over time
+## Rank position change over time ----
 
-```{r}
 top_ <- 10
 
 p_rank <- data_solar_train %>% 
@@ -258,12 +225,10 @@ p_rank <- data_solar_train %>%
   labs(x = 'Weather Station', y = 'Rank', color = 'Weather Station')
 
 p_rank
-```
 
-## All the datapoint
-Descriptive plot to show the production recorded in millions
+## All the datapoint ----
+# Descriptive plot to show the production recorded in millions
 
-```{r}
 p_all <- data_solar_train %>%
   select(all_of(c(data_solar_col_dates, data_solar_col_produ))) %>% 
   pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>% 
@@ -294,12 +259,10 @@ p_Day_Of_Week <- data_solar_train %>%
 
 layout <- matrix(c(1,1,1,2,3,4),2,3, byrow=TRUE)
 multiplot(p_all, p_year, p_month, p_Day_Of_Week, layout=layout)
-```
 
-## Evolution of principal weather stations
-Plot for the top highest weather stations.
+## Evolution of principal weather stations ----
+# Plot for the top highest weather stations.
 
-```{r}
 top_ <- 5
 
 p_all <- data_solar_train %>%
@@ -319,11 +282,9 @@ p_month <- data_solar_train %>%
   labs(x = 'Month', y = 'Production in million')
 
 multiplot(p_all, p_month)
-```
 
-## Training and test
+## Training and test ----
 
-```{r}
 p_train_test <- data_solar %>% 
   mutate(DataSet = ifelse(row_number()<=5113, 'Train', 'Test')) %>%
   group_by(Year, DataSet) %>% 
@@ -335,12 +296,10 @@ p_train_test <- data_solar %>%
   labs(x = 'Year', y = 'Number of days')
 
 p_train_test
-```
 
-## Seasonability
-https://towardsdatascience.com/forecasting-with-r-trends-and-seasonality-def24280e71f
+## Seasonability ----
+# https://towardsdatascience.com/forecasting-with-r-trends-and-seasonality-def24280e71f
 
-```{r}
 data <- data_solar_train %>% 
   pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>% 
   group_by(Date2) %>% 
@@ -350,11 +309,9 @@ data <- data_solar_train %>%
 data2 <- ts(data = data$ValueMean/1e6, frequency = 365, start = c(1994, 1, 01), end = c(2007, 12, 31))
 plot(decompose(data2))
 # plot(decompose(data2)$trend)
-```
 
-### Trend for the principal weather stations
+### Trend for the principal weather stations ----
 
-```{r}
 top_ <- 5
 
 ts_ <- function(x) {
@@ -371,13 +328,11 @@ data <- data_solar_train %>%
 
 # bb <- lapply(principal_weather_station[1:top_], function(x) plot(data[[x]]))
 lapply(principal_weather_station[1:top_], function(x) plot(data[[x]]$trend, main = x, ylab = 'Value'))
-```
 
-# Geolocalization
+# Geolocalization ----
 
 ## Positions
 
-```{r map1}
 data <- data_solar_train %>% 
   select(-data_solar_col_predi) %>% 
   pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>% 
@@ -392,18 +347,16 @@ m1 <- leaflet(data = data) %>%
              clusterOptions = markerClusterOptions())
 
 m1
-```
 
 ## Heatmap
 
-https://rstudio.github.io/leaflet/
-https://github.com/r-spatial/leafpop
-https://stackoverflow.com/questions/29034863/apply-a-ggplot-function-per-group-with-dplyr-and-set-title-per-group
-http://environmentalinformatics-marburg.github.io/mapview/popups/html/popups.html#popupgraph
-https://rpubs.com/bhaskarvk/leaflet-heat
-https://bhaskarvk.github.io/leaflet.extras/reference/heatmap.html
+# https://rstudio.github.io/leaflet/
+# https://github.com/r-spatial/leafpop
+# https://stackoverflow.com/questions/29034863/apply-a-ggplot-function-per-group-with-dplyr-and-set-title-per-group
+# http://environmentalinformatics-marburg.github.io/mapview/popups/html/popups.html#popupgraph
+# https://rpubs.com/bhaskarvk/leaflet-heat
+# https://bhaskarvk.github.io/leaflet.extras/reference/heatmap.html
 
-```{r map2}
 data <- data_solar_train %>% 
   select(-data_solar_col_predi) %>% 
   pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>% 
@@ -417,17 +370,15 @@ m1 <- leaflet(data = data) %>%
   addHeatmap(lng = ~elon, lat = ~nlat, intensity = ~ValueMean, blur = 90, max = 0.05, radius = 60)
 
 m1
-```
 
-## Seasonal decomposition
-For the top weather stations
+## Seasonal decomposition 
+# For the top weather stations
 
-https://rstudio.github.io/leaflet/
-https://github.com/r-spatial/leafpop
-https://stackoverflow.com/questions/29034863/apply-a-ggplot-function-per-group-with-dplyr-and-set-title-per-group
-http://environmentalinformatics-marburg.github.io/mapview/popups/html/popups.html#popupgraph
+# https://rstudio.github.io/leaflet/
+# https://github.com/r-spatial/leafpop
+# https://stackoverflow.com/questions/29034863/apply-a-ggplot-function-per-group-with-dplyr-and-set-title-per-group
+# http://environmentalinformatics-marburg.github.io/mapview/popups/html/popups.html#popupgraph
 
-```{r map_seasonal}
 top_ <- 5
 
 data <- data_solar_train %>% 
@@ -453,13 +404,11 @@ m1 <- leaflet() %>%
   leafpop::addPopupGraphs(data1$plots, group = 'data_solar', width = 300, height = 400)
 
 m1
-```
 
-# Correlations
+# Correlations ----
 
-http://www.sthda.com/english/wiki/correlation-matrix-a-quick-start-guide-to-analyze-format-and-visualize-a-correlation-matrix-using-r-software
+# http://www.sthda.com/english/wiki/correlation-matrix-a-quick-start-guide-to-analyze-format-and-visualize-a-correlation-matrix-using-r-software
 
-```{r}
 top_ <- 5
 top_pc <- 10
 
@@ -467,19 +416,17 @@ data <- data_solar_train %>%
   dplyr::select(principal_weather_station[1:top_], data_solar_col_predi[1:top_pc])
 
 chart.Correlation(data, histogram=TRUE) #, pch=19
-```
 
-# Histograms, density kernel and boxplot
+# Histograms, density kernel and boxplot ----
 
-black: histogram
-blue: density kernel distribution
+# black: histogram
+# blue: density kernel distribution
 
-http://www.sthda.com/english/wiki/ggplot2-histogram-plot-quick-start-guide-r-software-and-data-visualization
-https://stackoverflow.com/questions/14262497/fixing-the-order-of-facets-in-ggplot
+# http://www.sthda.com/english/wiki/ggplot2-histogram-plot-quick-start-guide-r-software-and-data-visualization
+# https://stackoverflow.com/questions/14262497/fixing-the-order-of-facets-in-ggplot
 
 ## General production
 
-```{r}
 data <- data_solar_train %>% 
   dplyr::select(data_solar_col_produ) %>% 
   pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value')
@@ -499,14 +446,12 @@ p_boxplot <- ggplot(data = data, aes(x = Value/1e6)) +
 
 layout <- matrix(c(1,1,1,2),4,1, byrow=TRUE)
 multiplot(p_histogram_density, p_boxplot, layout = layout)
-```
 
 ## Weather stations
 
-No outliers detected, considering 1.5
-https://en.wikipedia.org/wiki/Interquartile_range
+# No outliers detected, considering 1.5
+# https://en.wikipedia.org/wiki/Interquartile_range
 
-```{r}
 data <- data_solar_train %>% 
   dplyr::select(data_solar_col_produ) %>% 
   pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>% 
@@ -527,13 +472,10 @@ p_boxplot <- ggplot(data = data, aes(x = Value/1e6)) +
 
 p_histogram_density
 p_boxplot
-```
 
 ## Weather predictors
+# It's logical there are more possible "outliers" in the PC, because the definition is to have the biggest dispersion/range in the data when doing "principal component analysis".
 
-It's logical there are more possible "outliers" in the PC, because the definition is to have the biggest dispersion/range in the data when doing "principal component analysis".
-
-```{r}
 data <- data_solar_train %>% 
   dplyr::select(data_solar_col_predi) %>% 
   pivot_longer(cols = all_of(data_solar_col_predi), names_to = 'PC', values_to = 'Value') %>% 
@@ -552,15 +494,13 @@ ggplot(data = data, aes(x = Value)) +
   theme(axis.title.y=element_blank(),
         axis.text.y=element_blank(),
         axis.ticks.y=element_blank())
-```
 
-# Variable importance
+# Variable importance ----
 ## Using standard 'lapply'
 
-Using the formula from the forum:
-C:\Users\juanb\OneDrive\GMBD\STATISTICAL PROGRAMMING - R (MBD-EN-BL2020J-1_32R369_316435)\Session 12 - Forum\ex9.R
+# Using the formula from the forum:
+# C:\Users\juanb\OneDrive\GMBD\STATISTICAL PROGRAMMING - R (MBD-EN-BL2020J-1_32R369_316435)\Session 12 - Forum\ex9.R
 
-```{r}
 top_ <- 5
 
 select_important<-function(dat, n_vars, y){
@@ -582,15 +522,10 @@ select_important<-function(dat, n_vars, y){
 #                                                                                              y = data_solar_train[[x]]))
 
 # saveRDS(data_solar_importance, file.path(path_, 'storage', 'data_solar_importance.rds'))
-data_solar_importance <- readRDS(file.path(path_, 'storage', 'data_solar_importance.rds'))
-names(data_solar_importance) <- principal_weather_station[1:top_]
-```
+# data_solar_importance <- readRDS(file.path(path_, 'storage', 'data_solar_importance.rds'))
+# names(data_solar_importance) <- principal_weather_station[1:top_]
 
 ## Using parallel computing
-
-```{r}
-library(foreach)
-library(doParallel)
 
 top_ <- 98
 
@@ -621,15 +556,11 @@ stopCluster(cl)
 data_solar_importance <- readRDS(file.path(path_, 'storage', 'data_solar_importance_parallel.rds'))
 
 names(data_solar_importance) <- principal_weather_station[1:top_]
-```
 
+# Additional information ----
 
+## Feature visualization ----
 
-# Additional information
-
-## Feature visualization
-
-```{r}
 data <- data_add %>% 
   pivot_longer(cols = all_of(data_add_col), names_to = 'Variables', values_to = 'Value')
 
@@ -648,9 +579,7 @@ p_boxplot <- ggplot(data = data, aes(x = Value/1e6)) +
 
 layout <- matrix(c(1,1,1,2),4,1, byrow=TRUE)
 multiplot(p_histogram_density, p_boxplot, layout = layout)
-```
 
-```{r}
 mean_ <- data_add %>% 
   dplyr::select(all_of(data_add_col)) %>% 
   summarise_all(~mean(., na.rm = TRUE)) %>% 
@@ -703,11 +632,9 @@ p_mean_sd <- stats_ %>%
 
 layout <- matrix(c(1,2,3,4,5,5),3,2, byrow=TRUE)
 multiplot(p_mean, p_median, p_sd, p_na, p_mean_sd, layout = layout)
-```
 
-## Correlation between additional information
+## Correlation between additional information ----
 
-```{r}
 data <- data_add[, ..data_add_col]
 
 # https://stackoverflow.com/questions/17079637/correlation-matrix-in-r-returning-na-values
@@ -738,18 +665,16 @@ ggplot(dat, aes(x = cor)) +
   labs(x = 'Paerson correlation', y = 'Density')
 
 p_corrplot <- corrplot(cor_, type="upper", order="hclust", p.mat = p.mat, sig.level = 0.01, insig = "blank")
-```
 
-## Complete data
-Using library 'mice'.
-Considering the number of missing values, we propose the use of 'mice' to completete the dataset.
+## Complete data ----
+# Using library 'mice'.
+# Considering the number of missing values, we propose the use of 'mice' to completete the dataset.
 
-https://ipub.com/dev-corner/apps/r-package-downloads/
-https://campus.ie.edu/webapps/discussionboard/do/message?action=list_messages&course_id=_114320331_1&nav=discussion_board&conf_id=_251223_1&forum_id=_112929_1&message_id=_4663169_1
-C:\Users\juanb\OneDrive\GMBD\STATISTICAL PROGRAMMING - R (MBD-EN-BL2020J-1_32R369_316435)\Session 12 - Forum\EXERCISE 7.R
-https://www.r-bloggers.com/how-to-save-and-load-datasets-in-r-an-overview/
+# https://ipub.com/dev-corner/apps/r-package-downloads/
+# https://campus.ie.edu/webapps/discussionboard/do/message?action=list_messages&course_id=_114320331_1&nav=discussion_board&conf_id=_251223_1&forum_id=_112929_1&message_id=_4663169_1
+# C:\Users\juanb\OneDrive\GMBD\STATISTICAL PROGRAMMING - R (MBD-EN-BL2020J-1_32R369_316435)\Session 12 - Forum\EXERCISE 7.R
+# https://www.r-bloggers.com/how-to-save-and-load-datasets-in-r-an-overview/
 
-```{r}
 data <- data_add[, ..data_add_col]
 
 m_ <- 5
@@ -762,25 +687,21 @@ df2 <- readRDS(file.path(path_, 'storage', 'data_add_mice.rds'))
 df3 <- 0
 for (i in 1:m_) df3 <- df3 + complete(df2, i)
 df3 <- df3/m_
-```
 
-## Principal component analysis
+## Principal component analysis ----
 ### Using 'caret'
 
-https://topepo.github.io/caret/pre-processing.html
+# https://topepo.github.io/caret/pre-processing.html
 
-```{r}
 pca_threshold <- 0.90
 model_ <- preProcess(df3, method = c("pca"), thresh = pca_threshold)
 df4 <- predict(model_, df3)
 
 data_add_col_pca <- colnames(df4)
 data_add_pca <- bind_cols(data_add[, ..data_add_col_dates], df4)
-```
 
 ### Histograms, density kernel and boxplot
 
-```{r}
 data <- data_add_pca %>% 
   pivot_longer(cols = all_of(data_add_col_pca), names_to = 'PC', values_to = 'Value') %>% 
   mutate(PC_ = factor(PC, levels = data_add_col_pca))
@@ -800,4 +721,3 @@ p_boxplot <- ggplot(data = data, aes(x = Value)) +
 
 p_histogram_density
 p_boxplot
-```
