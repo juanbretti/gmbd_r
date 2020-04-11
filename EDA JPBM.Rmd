@@ -35,7 +35,7 @@ library(leaflet.extras)
 library(forecast)
 library(caret)
 library(mice)
-library(outliers)
+library(outliers) 
 ```
 
 ## Helper functions
