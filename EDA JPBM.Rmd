@@ -8,7 +8,7 @@ output: html_document
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
-### testing commit changes, second change
+
 # Preparation
 
 ## Load libraries
@@ -35,6 +35,7 @@ library(leaflet.extras)
 library(forecast)
 library(caret)
 library(mice)
+library(outliers)
 ```
 
 ## Helper functions
@@ -161,6 +162,25 @@ f_check_na(data_solar_train)
 f_check_na(data_solar_test)
 f_check_na(data_station)
 f_check_na(data_add)
+```
+
+### Outliers check
+
+Based on:
+https://www.kaggle.com/rtatman/data-cleaning-challenge-outliers
+https://cran.r-project.org/web/packages/outliers/outliers.pdf
+
+```{r}
+data_solar_col_produ_scores <- lapply(data_solar_col_produ, function(x) scores(data_solar_train[[x]], type = 'z'))
+names(data_solar_col_produ_scores) <- data_solar_col_produ
+skim(data_solar_col_produ_scores)
+
+# summary(unlist(data_solar_col_produ_scores))
+hist(unlist(data_solar_col_produ_scores))
+
+table(
+  abs(unlist(data_solar_col_produ_scores))>=3
+)
 ```
 
 ## Solar dataset
