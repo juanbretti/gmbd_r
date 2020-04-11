@@ -171,6 +171,11 @@ https://www.kaggle.com/rtatman/data-cleaning-challenge-outliers
 https://cran.r-project.org/web/packages/outliers/outliers.pdf
 
 ```{r}
+<<<<<<< HEAD
+=======
+library(outliers)
+
+>>>>>>> 445be879412ff5bafcdb12c1bd4bcd66f2818414
 data_solar_col_produ_scores <- lapply(data_solar_col_produ, function(x) scores(data_solar_train[[x]], type = 'z'))
 names(data_solar_col_produ_scores) <- data_solar_col_produ
 skim(data_solar_col_produ_scores)
