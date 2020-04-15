@@ -48,9 +48,9 @@ dat_solar_predictors <- dat_solar[1:5113,100:456]
 
 ################################ JPBM #####################################
 
-data_solar <- readRDS(file = file.path(path_, 'solar_dataset.RData'))
-data_station <- fread(file = file.path(path_, 'station_info.csv'))
-data_add <- readRDS(file = file.path(path_, 'additional_variables.RData'))
+data_solar <- readRDS(file = file.path('data', 'solar_dataset.RData'))
+data_station <- fread(file = file.path('data', 'station_info.csv'))
+data_add <- readRDS(file = file.path('data', 'additional_variables.RData'))
 
 # Source dataset
 data_solar <- data_solar[j = Date2 := as.Date(x = Date, format = "%Y%m%d")]
@@ -260,8 +260,8 @@ data <- data_add[, ..data_add_col]
 
 m_ <- 5
 # df2 <- mice(data, m=m_, maxit=10, meth='pmm', seed=500)
-# saveRDS(df2, file.path(path_, 'df2.rds'))
-df2 <- readRDS(file.path(path_, 'df2.rds'))
+# saveRDS(df2, file.path('storage', 'data_add_mice.rds'))
+df2 <- readRDS(file.path('storage', 'data_add_mice.rds'))
 # summary(df2)
 
 # Average of all the Multivariate Imputation
@@ -356,8 +356,8 @@ select_important<-function(dat, n_vars, y){
 print(time_importance) #1459.36
 stopCluster(cl)
 
-# saveRDS(data_solar_importance, file.path(path_, 'data_solar_importance_parallel.rds'))
-data_solar_importance <- readRDS(file.path(path_, 'data_solar_importance_parallel.rds'))
+# saveRDS(data_solar_importance, file.path('storage', 'data_solar_importance_parallel.rds'))
+data_solar_importance <- readRDS(file.path('storage', 'data_solar_importance_parallel.rds'))
 
 names(data_solar_importance) <- principal_weather_station[1:top_]
 
