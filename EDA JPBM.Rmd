@@ -793,6 +793,12 @@ df3 <- df3/m_
 If I remove outliers before doing 'mice', I will remove all the row or will have columns with different lenght/nrows.
 Doing outliers removal, after 'mice', means that 'mice' was trained with the outliers.
 
+@Li, this does not work, because I have different number of NA per column.
+So the data.table has a strage dimmension.
+This "outliers" thing should be done after "mice".
+
+But makese sense?
+
 ```{r}
 f_scores <- function(x) {
   data <- data_add[[x]]
