@@ -93,8 +93,6 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
 ## Load data
 
 ```{r load_data}
-path_ <- '~/gmbd_r'
-
 data_solar <- readRDS(file = file.path('data', 'solar_dataset.RData'))
 data_station <- fread(file = file.path('data', 'station_info.csv'))
 data_add <- readRDS(file = file.path('data', 'additional_variables.RData'))
