@@ -36,6 +36,9 @@ library(forecast)
 library(caret)
 library(mice)
 library(outliers) 
+
+library(foreach)
+library(doParallel)
 ```
 
 ## Helper functions
@@ -614,9 +617,6 @@ names(data_solar_importance) <- principal_weather_station[1:top_]
 ## Using parallel computing
 
 ```{r}
-library(foreach)
-library(doParallel)
-
 top_ <- 98
 
 cl<-makeCluster(detectCores())
@@ -796,8 +796,8 @@ Doing outliers removal, after 'mice', means that 'mice' was trained with the out
 ```{r}
 f_scores <- function(x) {
   data <- data_add[[x]]
-  data <- data[is.na(data)]
-  res <- scores(data, type = 'z')
+  data <- data[!is.na(data)]
+  res <- outliers::scores(data, type = 'z')
   return(res)
 }
 
@@ -826,6 +826,8 @@ data_add_pca <- bind_cols(data_add[, ..data_add_col_dates], df4)
 ```
 
 ### Histograms, density kernel and boxplot
+
+
 
 ```{r}
 data <- data_add_pca %>% 
