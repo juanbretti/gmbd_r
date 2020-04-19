@@ -22,6 +22,8 @@ library(caret)
 
 ################################ [1] FILE PATH #####################################
 
+#testing
+
 file_path <- 'C:/Users/pleaz/Desktop/IE/Term 1/R/Group Assignment/'
 
 # Real values of solar production recorded in 98 different weather stations (rows defined below) 
