@@ -1,5 +1,5 @@
 ---
-title: "Programming R Workgroup Project"
+title: "Programming R Workgroup Project: EDA"
 author: "Group E"
 date: "3/20/2020"
 output: html_document
@@ -778,15 +778,15 @@ https://www.r-bloggers.com/how-to-save-and-load-datasets-in-r-an-overview/
 data <- data_add[, ..data_add_col]
 
 m_ <- 5
-# df2 <- mice(data, m=m_, maxit=10, meth='pmm', seed=500)
-# saveRDS(df2, file.path('storage', 'data_add_mice.rds'))
-df2 <- readRDS(file.path('storage', 'data_add_mice.rds'))
-# summary(df2)
+# data_mice <- mice(data, m=m_, maxit=10, meth='pmm', seed=500)
+# saveRDS(data_mice, file.path('storage', 'data_add_mice.rds'))
+data_mice <- readRDS(file.path('storage', 'data_add_mice.rds'))
+# summary(data_mice)
 
 # Average of all the Multivariate Imputation
-df3 <- 0
-for (i in 1:m_) df3 <- df3 + complete(df2, i)
-df3 <- df3/m_
+data_mice_ <- 0
+for (i in 1:m_) data_mice_ <- data_mice_ + complete(data_mice, i)
+data_mice_ <- data_mice_/m_
 ```
 
 ## Outliers
@@ -824,11 +824,11 @@ https://topepo.github.io/caret/pre-processing.html
 
 ```{r}
 pca_threshold <- 0.90
-model_ <- preProcess(df3, method = c("pca"), thresh = pca_threshold)
-df4 <- predict(model_, df3)
+model_ <- preProcess(data_mice_, method = c("pca"), thresh = pca_threshold)
+data_mice_pca <- predict(model_, data_mice_)
 
-data_add_col_pca <- colnames(df4)
-data_add_pca <- bind_cols(data_add[, ..data_add_col_dates], df4)
+data_add_col_pca <- colnames(data_mice_pca)
+data_add_pca <- bind_cols(data_add[, ..data_add_col_dates], data_mice_pca)
 ```
 
 ### Histograms, density kernel and boxplot
