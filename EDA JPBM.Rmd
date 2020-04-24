@@ -14,7 +14,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ## Load libraries
 
 ```{r load_libraries, message=FALSE}
-# General porpuse
+# General purpose
 library(tidyverse)
 library(data.table)
 library(lubridate)
@@ -30,6 +30,8 @@ library(corrplot)
 # Mapping
 library(leaflet)
 library(leaflet.extras)
+library(sf)
+library(gdtools)
 
 # Calculations
 library(forecast)
@@ -41,11 +43,14 @@ library(foreach)
 library(doParallel)
 ```
 
-## Helper functions
+## Source Helper functions
 
 http://www.cookbook-r.com/Graphs/Multiple_graphs_on_one_page_(ggplot2)/
 
 ```{r}
+
+source('20200411_Main_EDA.R')
+
 # Multiple plot function
 #
 # ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
@@ -55,42 +60,7 @@ http://www.cookbook-r.com/Graphs/Multiple_graphs_on_one_page_(ggplot2)/
 # If the layout is something like matrix(c(1,2,3,3), nrow=2, byrow=TRUE),
 # then plot 1 will go in the upper left, 2 will go in the upper right, and
 # 3 will go all the way across the bottom.
-#
-multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
-  library(grid)
 
-  # Make a list from the ... arguments and plotlist
-  plots <- c(list(...), plotlist)
-
-  numPlots = length(plots)
-
-  # If layout is NULL, then use 'cols' to determine layout
-  if (is.null(layout)) {
-    # Make the panel
-    # ncol: Number of columns of plots
-    # nrow: Number of rows needed, calculated from # of cols
-    layout <- matrix(seq(1, cols * ceiling(numPlots/cols)),
-                    ncol = cols, nrow = ceiling(numPlots/cols))
-  }
-
- if (numPlots==1) {
-    print(plots[[1]])
-
-  } else {
-    # Set up the page
-    grid.newpage()
-    pushViewport(viewport(layout = grid.layout(nrow(layout), ncol(layout))))
-
-    # Make each plot, in the correct location
-    for (i in 1:numPlots) {
-      # Get the i,j matrix positions of the regions that contain this subplot
-      matchidx <- as.data.frame(which(layout == i, arr.ind = TRUE))
-
-      print(plots[[i]], vp = viewport(layout.pos.row = matchidx$row,
-                                      layout.pos.col = matchidx$col))
-    }
-  }
-}
 ```
 
 ## Load data
@@ -138,6 +108,7 @@ data_add_col <- colnames(data_add)[2:101]
 data_add_col_dates <- setdiff(colnames(data_add), data_add_col)
 ```
 
+## Split train and test set
 ```{r}
 data_solar_train <- data_solar[i = 1:5113]
 data_solar_test <- data_solar[i = 5114:nrow(data_solar), j = .SD, .SDcols = c(data_solar_col_dates, data_solar_col_predi)]
@@ -150,20 +121,29 @@ data_solar_test <- data_solar[i = 5114:nrow(data_solar), j = .SD, .SDcols = c(da
 ### NA check
 
 ```{r}
-f_check_na <- function(x) {
-  count_na <- sum(is.na(x))
-  count_total <- dim(x)[1]*dim(x)[2]
-  variable_name <- deparse(substitute(x))
-  if(count_na == 0) out <- sprintf("No NA in the dataset '%s'", variable_name)
-  else out <- sprintf("There are %3.1f%% NA in the dataset '%s'", count_na/count_total*100, variable_name)
-  return(out)
-}
+# USE SOURCED FUNCTION INSTEAD
+# f_check_na <- function(x) {
+#   count_na <- sum(is.na(x))
+#   count_total <- dim(x)[1]*dim(x)[2]
+#   variable_name <- deparse(substitute(x))
+#   if(count_na == 0) out <- sprintf("No NA in the dataset '%s'", variable_name)
+#   else out <- sprintf("There are %3.1f%% NA in the dataset '%s'", count_na/count_total*100, variable_name)
+#   return(out)
+# }
 
 f_check_na(data_solar_train)
 f_check_na(data_solar_test)
 f_check_na(data_station)
 f_check_na(data_add)
 ```
+### Constant Variables check
+```{r}
+criteria_variables(data_solar_train)
+criteria_variables(data_solar_test)
+criteria_variables(data_station)
+criteria_variables(data_add)
+```
+
 
 ### Outliers check
 
@@ -189,7 +169,8 @@ table(
 ```
 
 #### Additional data
-First, need to complete the data set to be able to use 'outliers()'.
+First, need to complete the data set to be able to use 'outl
+iers()'.
 
 ## Solar dataset
 
@@ -207,7 +188,7 @@ skim(data_solar_test)
 glimpse(data_solar_test)
 ```
 
-## Statios informaiton
+## Stations informaiton
 
 ```{r, eval=FALSE}
 skim(data_station)
@@ -227,41 +208,42 @@ Weather stations sorted by volume
 ## Principal weather stations
 
 ```{r}
-principal_weather_station <- data_solar_train %>% 
-  pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>% 
-  group_by(WeatherStation) %>% 
-  summarise(ValueSum = sum(as.numeric(Value))) %>% 
-  arrange(desc(ValueSum)) %>% 
-  select(WeatherStation) %>% 
-  pull()
+# principal_weather_station <- data_solar_train %>% 
+#   pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>% 
+#   group_by(WeatherStation) %>% 
+#   summarise(ValueSum = sum(as.numeric(Value))) %>% 
+#   arrange(desc(ValueSum)) %>% 
+#   select(WeatherStation) %>% 
+#   pull()
+principal_weather_station
 ```
 
 ```{r}
-top_ <- 7
-
-p_top <- data_solar_train %>% 
-  pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>% 
-  filter(WeatherStation %in% principal_weather_station[1:top_]) %>% 
-  group_by(WeatherStation) %>% 
-  summarise(ValueSum = sum(as.numeric(Value))) %>% 
-  mutate(WeatherStation_f = factor(WeatherStation, levels = rev(principal_weather_station))) %>% 
-  ggplot(aes(x = WeatherStation_f, y = ValueSum/1e6, fill = WeatherStation_f)) +
-  geom_col() +
-  coord_flip() +
-  theme(legend.position = "none") +
-  labs(x = 'Weather Station', y = 'Production in million', title = 'Top')
-
-p_bottom <- data_solar_train %>% 
-  pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>% 
-  filter(WeatherStation %in% principal_weather_station[(length(principal_weather_station)-top_):length(principal_weather_station)]) %>% 
-  group_by(WeatherStation) %>% 
-  summarise(ValueSum = sum(as.numeric(Value))) %>% 
-  mutate(WeatherStation_f = factor(WeatherStation, levels = rev(principal_weather_station))) %>% 
-  ggplot(aes(x = WeatherStation_f, y = ValueSum/1e6, fill = WeatherStation_f)) +
-  geom_col() +
-  coord_flip() +
-  theme(legend.position = "none") +
-  labs(x = 'Weather Station', y = 'Production in million', title = 'Bottom')
+# top_ <- 7
+# 
+# p_top <- data_solar_train %>% 
+#   pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>% 
+#   filter(WeatherStation %in% principal_weather_station[1:top_]) %>% 
+#   group_by(WeatherStation) %>% 
+#   summarise(ValueSum = sum(as.numeric(Value))) %>% 
+#   mutate(WeatherStation_f = factor(WeatherStation, levels = rev(principal_weather_station))) %>% 
+#   ggplot(aes(x = WeatherStation_f, y = ValueSum/1e6, fill = WeatherStation_f)) +
+#   geom_col() +
+#   coord_flip() +
+#   theme(legend.position = "none") +
+#   labs(x = 'Weather Station', y = 'Production in million', title = 'Top')
+# 
+# p_bottom <- data_solar_train %>% 
+#   pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>% 
+#   filter(WeatherStation %in% principal_weather_station[(length(principal_weather_station)-top_):length(principal_weather_station)]) %>% 
+#   group_by(WeatherStation) %>% 
+#   summarise(ValueSum = sum(as.numeric(Value))) %>% 
+#   mutate(WeatherStation_f = factor(WeatherStation, levels = rev(principal_weather_station))) %>% 
+#   ggplot(aes(x = WeatherStation_f, y = ValueSum/1e6, fill = WeatherStation_f)) +
+#   geom_col() +
+#   coord_flip() +
+#   theme(legend.position = "none") +
+#   labs(x = 'Weather Station', y = 'Production in million', title = 'Bottom')
 
 multiplot(p_top, p_bottom)
 ```
@@ -328,23 +310,23 @@ multiplot(p_all, p_year, p_month, p_Day_Of_Week, layout=layout)
 Plot for the top highest weather stations.
 
 ```{r}
-top_ <- 5
+# top_ <- 5
 
-p_all <- data_solar_train %>%
-  select(all_of(c(data_solar_col_dates, data_solar_col_produ))) %>% 
-  pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>% 
-  filter(WeatherStation %in% principal_weather_station[1:top_]) %>% 
-  ggplot(aes(x = Date2, y = Value/1e6, color = WeatherStation)) +
-  geom_smooth() +
-  labs(x = 'Date', y = 'Production in million') +
-  theme(legend.position = "none")
-
-p_month <- data_solar_train %>% 
-  pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>% 
-  filter(WeatherStation %in% principal_weather_station[1:top_]) %>% 
-  ggplot(aes(x = Month, y = Value, color = WeatherStation)) +
-  geom_boxplot() +
-  labs(x = 'Month', y = 'Production in million')
+# p_all <- data_solar_train %>%
+#   select(all_of(c(data_solar_col_dates, data_solar_col_produ))) %>% 
+#   pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>% 
+#   filter(WeatherStation %in% principal_weather_station[1:top_]) %>% 
+#   ggplot(aes(x = Date2, y = Value/1e6, color = WeatherStation)) +
+#   geom_smooth() +
+#   labs(x = 'Date', y = 'Production in million') +
+#   theme(legend.position = "none")
+# 
+# p_month <- data_solar_train %>% 
+#   pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>% 
+#   filter(WeatherStation %in% principal_weather_station[1:top_]) %>% 
+#   ggplot(aes(x = Month, y = Value, color = WeatherStation)) +
+#   geom_boxplot() +
+#   labs(x = 'Month', y = 'Production in million')
 
 multiplot(p_all, p_month)
 ```
@@ -365,7 +347,7 @@ p_train_test <- data_solar %>%
 p_train_test
 ```
 
-## Seasonability
+## Seasonality
 https://towardsdatascience.com/forecasting-with-r-trends-and-seasonality-def24280e71f
 
 ```{r}
@@ -390,11 +372,11 @@ ts_ <- function(x) {
   a <- decompose(a)
   return(a)
 }
-  
-data <- data_solar_train %>% 
-  pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>% 
-  group_by(WeatherStation) %>% 
-  group_map(~ ts_(.x$Value)) %>% 
+
+data <- data_solar_train %>%
+  pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>%
+  group_by(WeatherStation) %>%
+  group_map(~ ts_(.x$Value)) %>%
   setNames(data_solar_col_produ)
 
 # bb <- lapply(principal_weather_station[1:top_], function(x) plot(data[[x]]))
@@ -639,8 +621,8 @@ select_important<-function(dat, n_vars, y){
 #                                                      y = data_solar_train[[x]])
 #                                   }
 # })
-print(time_importance) #1459.36
-stopCluster(cl)
+#print(time_importance) #1459.36
+#stopCluster(cl)
 
 # saveRDS(data_solar_importance, file.path('storage', 'data_solar_importance_parallel.rds'))
 data_solar_importance <- readRDS(file.path('storage', 'data_solar_importance_parallel.rds'))
@@ -774,13 +756,13 @@ https://campus.ie.edu/webapps/discussionboard/do/message?action=list_messages&co
 C:\Users\juanb\OneDrive\GMBD\STATISTICAL PROGRAMMING - R (MBD-EN-BL2020J-1_32R369_316435)\Session 12 - Forum\EXERCISE 7.R
 https://www.r-bloggers.com/how-to-save-and-load-datasets-in-r-an-overview/
 
-```{r}
+```{r, eval= FALSE}
 data <- data_add[, ..data_add_col]
 
 m_ <- 5
-# data_mice <- mice(data, m=m_, maxit=10, meth='pmm', seed=500)
-# saveRDS(data_mice, file.path('storage', 'data_add_mice.rds'))
-data_mice <- readRDS(file.path('storage', 'data_add_mice.rds'))
+data_mice <- mice(data, m=m_, maxit=10, meth='pmm', seed=500)
+#saveRDS(data_mice, file.path('storage', 'data_add_mice.rds'))
+#data_mice <- readRDS(file.path('storage', 'data_add_mice.rds'))
 # summary(data_mice)
 
 # Average of all the Multivariate Imputation
@@ -790,16 +772,9 @@ data_mice_ <- data_mice_/m_
 ```
 
 ## Outliers
-If I remove outliers before doing 'mice', I will remove all the row or will have columns with different lenght/nrows.
-Doing outliers removal, after 'mice', means that 'mice' was trained with the outliers.
 
-@Li, this does not work, because I have different number of NA per column.
-So the data.table has a strage dimmension.
-This "outliers" thing should be done after "mice".
 
-But makese sense?
-
-```{r}
+```{r, eval = FALSE}
 f_scores <- function(x) {
   data <- data_add[[x]]
   data <- data[!is.na(data)]
