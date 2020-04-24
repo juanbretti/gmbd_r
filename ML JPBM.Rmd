@@ -167,20 +167,20 @@ data_col_importance <- readRDS(file.path('storage', 'data_col_importance.rds'))
 rm(list=c('cl', 'select_important', 'time_importance'))
 ```
 
-```{r}
-### Define grid
-cost_values <- 10^seq(from = -2, to = 1, by = 0.5)
-gamma_values <- 10^seq(from = -3, to = -1, by = 0.5)
-epsilon_values <- 10^seq(from = -2, to = 0, by = 0.5)
-```
-
-
 # Hyperparameter optimization
 ## Using class methods
 
 C:\Users\juanb\OneDrive\GMBD\STATISTICAL PROGRAMMING - R (MBD-EN-BL2020J-1_32R369_316435)\Session 16 - Machine Learning\script_s16.R
 C:\Users\juanb\OneDrive\GMBD\STATISTICAL PROGRAMMING - R (MBD-EN-BL2020J-1_32R369_316435)\Session 17 - Forum\Ex1\Ex1 Regression.R
 https://campus.ie.edu/webapps/discussionboard/do/message?action=list_messages&course_id=_114320331_1&nav=discussion_board_entry&conf_id=_251223_1&forum_id=_112829_1&message_id=_4658342_1
+
+
+```{r}
+### Define grid
+cost_values <- 10^seq(from = -2, to = 1, by = 0.5)
+gamma_values <- 10^seq(from = -3, to = -1, by = 0.5)
+epsilon_values <- 10^seq(from = -2, to = 0, by = 0.5)
+```
 
 ```{r}
 # Parameters
@@ -249,38 +249,88 @@ grid_results <- grid_results[order(mse_val, mae_val)]
 best <- grid_results[1]
 ```
 
-# Final model
-## Train
-
 ```{r}
 
 ### Train final model
 # train SVM model with best found set of hyperparamets
-model <- svm(mpg ~ ., data = rbind(train,val), 
-             cost = best$cost, epsilon = best$epsilon, gamma = best$gamma)
+model <- svm(WeatherStation ~ ., data = rbind(data_train, data_val), cost = best$cost, epsilon = best$epsilon, gamma = best$gamma)
 
 # Get model predictions
-predictions_train <- predict(model, newdata = train)
-predictions_val <- predict(model, newdata = val)
-predictions_test <- predict(model, newdata = test)
+predictions_train <- predict(model, newdata = data_train)
+predictions_val <- predict(model, newdata = data_val)
+# Get errors
+errors_train <- predictions_train - data_train$WeatherStation
+errors_val <- predictions_val - data_val$WeatherStation
+# Compute Metrics
+mse_train <- mean(errors_train^2)
+mae_train <- mean(abs(errors_train))
+mse_val <- mean(errors_val^2)
+mae_val <- mean(abs(errors_val))
 
+ggplot()+
+  geom_point(aes(y=predictions_train, x=1:nrow(data_train)), color = 'red') +
+  geom_point(aes(y=data_train$WeatherStation, x=1:nrow(data_train)), color = 'blue')
 ```
 
-## Calculate errors
+## Using caret library
 
 ```{r}
+# Parameters
+x <- 'KENT'
+col_importance_number <- 40
+
+# Subset selection
+data_train <- bind_cols(WeatherStation = data_solar_add_train[[x]], 
+                  select(data_solar_add_train, data_col_importance[[x]][1:col_importance_number]))
+data_val <- bind_cols(WeatherStation = data_solar_add_val[[x]], 
+                  select(data_solar_add_val, data_col_importance[[x]][1:col_importance_number]))
+
+# Control
+fitControl <- trainControl(method = "repeatedcv",   
+                           number = 5,     # number of folds
+                           repeats = 2,    # repeated ten times
+                           search = "random",
+                           allowParallel = TRUE)
+
+lambdaGrid <- expand.grid(C = 10^seq(from = -2, to = 1, by = 0.5),
+                          sigma = 10^seq(from = -3, to = -1, by = 0.5))
+
+# Parallel grid search
+cl<-makeCluster(detectCores())
+registerDoParallel(cl)
+
+# Model
+system.time({
+model_cv <- caret::train(WeatherStation ~ .,
+                  data = data_train,
+                  method = "svmRadialSigma",
+                  metric = "RMSE",
+                  tuneLength = 30,
+                  trControl = fitControl,
+                  preProcess = c('scale', 'center'),
+                  tuneGrid = lambdaGrid,
+                  na.action = na.omit)
+})
+
+stopCluster(cl)
+
+model_cv
+```
+
+```{r}
+# Get model predictions
+predictions_train <- predict(model_cv, newdata = data_train)
+predictions_val <- predict(model_cv, newdata = data_val)
 # Get errors
-errors_train <- predictions_train - train$mpg
-errors_val <- predictions_val - val$mpg
-errors_test <- predictions_test - test$mpg
-
+errors_train <- predictions_train - data_train$WeatherStation
+errors_val <- predictions_val - data_val$WeatherStation
 # Compute Metrics
-mse_train <- round(mean(errors_train^2), 2)
-mae_train <- round(mean(abs(errors_train)), 2)
+mse_train <- mean(errors_train^2)
+mae_train <- mean(abs(errors_train))
+mse_val <- mean(errors_val^2)
+mae_val <- mean(abs(errors_val))
 
-mse_val <- round(mean(errors_val^2), 2)
-mae_val <- round(mean(abs(errors_val)), 2)
-
-mse_test <- round(mean(errors_test^2), 2)
-mae_test <- round(mean(abs(errors_test)), 2)
+ggplot()+
+  geom_point(aes(y=predictions_train, x=1:nrow(data_train)), color = 'red') +
+  geom_point(aes(y=data_train$WeatherStation, x=1:nrow(data_train)), color = 'blue')
 ```
