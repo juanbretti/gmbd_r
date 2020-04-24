@@ -59,7 +59,8 @@ data_solar <- data_solar %>%
          Month = month(Date2, label = TRUE),
          Day = day(Date2),
          Day_Of_Year = yday(Date2),
-         Day_Of_Week = wday(Date2, label = TRUE, week_start = 1)) %>% 
+         Day_Of_Week = wday(Date2, label = TRUE, week_start = 1),
+         Days_Since_Origin = time_length(interval(origin, Date2), unit = 'day')) %>% 
   as.data.table(.)
 
 # Columns defined from the enunciate
@@ -71,6 +72,13 @@ data_solar_col_dates <- setdiff(colnames(data_solar), c(data_solar_col_produ, da
 data_add_col <- colnames(data_add)[2:101]
 data_add_col_dates <- setdiff(colnames(data_add), data_add_col)
 ```
+
+> principal_weather_station
+ [1] "KENT" "BOIS" "HOOK" "HOLL" "GOOD" "TIPT" "BEAV" "ARNE" "CAMA" "CHEY" "ERIC" "MANG" "WOOD" "BUTL" "BUFF" "BESS" "RETR" "SLAP" "HOBA" "FREE" "RING"
+[22] "ALTU" "WEAT" "MEDI" "WAUR" "CHER" "APAC" "WATO" "SEIL" "FTCB" "HINT" "PUTN" "ACME" "MAYR" "LAHO" "KETC" "ELRE" "SULP" "NINN" "BREC" "WASH" "MINC"
+[43] "BYAR" "CHIC" "GUTH" "FAIR" "SPEN" "MARE" "BURN" "MADI" "SHAW" "REDR" "DURA" "PERK" "PAUL" "MEDF" "ADAX" "NEWK" "PAWN" "HUGO" "BURB" "STIL" "WYNO"
+[64] "FORA" "HASK" "BLAC" "CENT" "BOWL" "BRIS" "OILT" "WILB" "CHAN" "NOWA" "BIXB" "OKEM" "LANE" "TISH" "SKIA" "STUA" "COPA" "IDAB" "TAHL" "MIAM" "VINI"
+[85] "SALL" "EUFA" "STIG" "MCAL" "JAYX" "COOK" "PRYO" "WIST" "CLOU" "OKMU" "TALI" "CLAY" "WEST" "MTHE"
 
 ## Complete data_add
 
@@ -105,7 +113,7 @@ rm(list = c('data_solar', 'data_add_mice'))
 # skim(data_solar_add)
 ```
 
-# Train and test split
+# Train, validation, test and predict split
 
 ```{r}
 data_solar_add_train_ <- data_solar_add[1:5113, ]
@@ -125,17 +133,14 @@ data_solar_add_test <- data_solar_add_train_[(nrow_train+nrow_val+1):nrow(data_s
 rm(list=c('nrow_train', 'nrow_val', 'nrow_test', 'data_solar_add_train_', 'data_solar_add', 'data_add_col_dates'))
 ```
 
-
 # Variable importance
-## Using 'varimp'
+## Using 'filterVarImp'
 
 ```{r}
-top_ <- 98
+# cl<-makeCluster(detectCores())
+# registerDoParallel(cl)
 
-cl<-makeCluster(detectCores())
-registerDoParallel(cl)
-
-select_important<-function(dat, n_vars, y){
+select_important<-function(dat, y, n_vars=ncol(dat)){
   varimp <- filterVarImp(x = dat, y=y, nonpara=TRUE)
   varimp <- data.table(variable=rownames(varimp),imp=varimp[, 1])
   varimp <- varimp[order(-imp)]
@@ -144,167 +149,188 @@ select_important<-function(dat, n_vars, y){
 }
 
 # time_importance <- system.time({
-# data_solar_importance <- foreach (x = principal_weather_station[1:top_],
-#                                   .inorder=FALSE, .verbose=FALSE, .errorhandling="remove",
-#                                   .packages=(.packages()), .export=ls(envir=globalenv())) %dopar% {
-#                                     select_important(dat = data_solar_train[, data_solar_col_predi, with = FALSE], 
-#                                                      n_vars = 50,
-#                                                      y = data_solar_train[[x]])
-#                                   }
+# data_col_importance <- foreach (x = data_solar_col_produ,
+#                                   .inorder=FALSE, .verbose=FALSE, .errorhandling="remove", .packages=(.packages())) %dopar% {
+#                                     select_important(dat=select(data_solar_add_train, 
+#                                                                 !!c(data_solar_col_predi, 'Day_Of_Year', 'Day_Of_Week', 'Days_Since_Origin', data_add_col)),
+#                                                      y = data_solar_add_train[[x]])
+#                                     }
 # })
-# print(time_importance) #1459.36
-stopCluster(cl)
+# names(data_col_importance) <- data_solar_col_produ
 
-# saveRDS(data_solar_importance, file.path('storage', 'data_solar_importance_parallel.rds'))
-data_solar_importance <- readRDS(file.path('storage', 'data_solar_importance_parallel.rds'))
+# print(time_importance)
+# stopCluster(cl)
 
-names(data_solar_importance) <- principal_weather_station[1:top_]
+# saveRDS(data_col_importance, file.path('storage', 'data_col_importance.rds'))
+data_col_importance <- readRDS(file.path('storage', 'data_col_importance.rds'))
+
+rm(list=c('cl', 'select_important', 'time_importance'))
 ```
 
-## Using 'PCA'
-
-https://topepo.github.io/caret/pre-processing.html
-
-```{r}
-pca_threshold <- 0.90
-model_ <- preProcess(data_mice_, method = c("pca"), thresh = pca_threshold)
-data_mice_pca <- predict(model_, data_mice_)
-
-data_add_col_pca <- colnames(data_mice_pca)
-data_add_pca <- bind_cols(data_add[, ..data_add_col_dates], data_mice_pca)
-```
+# Hyperparameter optimization
+## Using class methods
 
 C:\Users\juanb\OneDrive\GMBD\STATISTICAL PROGRAMMING - R (MBD-EN-BL2020J-1_32R369_316435)\Session 16 - Machine Learning\script_s16.R
 C:\Users\juanb\OneDrive\GMBD\STATISTICAL PROGRAMMING - R (MBD-EN-BL2020J-1_32R369_316435)\Session 17 - Forum\Ex1\Ex1 Regression.R
 https://campus.ie.edu/webapps/discussionboard/do/message?action=list_messages&course_id=_114320331_1&nav=discussion_board_entry&conf_id=_251223_1&forum_id=_112829_1&message_id=_4658342_1
 
-# Data split
 
 ```{r}
-########################## [2.2.2] train/val/test split ############################
-
-# setting seed to reproduce results of random sampling
-set.seed(100) 
-
-# row indices for training data (70%)
-train_index <- sample(1:nrow(dat), 0.7*nrow(dat))  
-# row indices for validation data (15%)
-val_index <- sample(setdiff(1:nrow(dat), train_index), 0.15*nrow(dat))  
-# row indices for test data (15%)
-test_index <- setdiff(1:nrow(dat), c(train_index, val_index))
-
-# split data
-train <- dat[train_index] 
-val <- dat[val_index] 
-test  <- dat[test_index]
-```
-
-# Hyperparameter optimization
-
-```{r}
-########################## [2.2.3] hyperparameter optimization ############################
-
 ### Define grid
 cost_values <- 10^seq(from = -2, to = 1, by = 0.5)
 gamma_values <- 10^seq(from = -3, to = -1, by = 0.5)
 epsilon_values <- 10^seq(from = -2, to = 0, by = 0.5)
+```
+
+```{r}
+# Parameters
+x <- 'KENT'
+col_importance_number <- 40
+
+# Subset selection
+data_train <- bind_cols(WeatherStation = data_solar_add_train[[x]], 
+                  select(data_solar_add_train, data_col_importance[[x]][1:col_importance_number]))
+data_val <- bind_cols(WeatherStation = data_solar_add_val[[x]], 
+                  select(data_solar_add_val, data_col_importance[[x]][1:col_importance_number]))
+
+# Preprocessing
+model_preprocess <- preProcess(x = data_train, method = c('center', 'scale'))
+data_preprocess_train <- predict(model_preprocess, data_train)
+data_preprocess_val <- predict(model_preprocess, data_val)
 
 ### Compute grid search
 grid_results <- data.table()
 
-# Default values
-cost <- gamma <- 1
+# Parallel grid search
+cl<-makeCluster(detectCores())
+registerDoParallel(cl)
 
-# for (cost in cost_values) {
-#   for (gamma in gamma_values) {
-    for (epsilon in epsilon_values) {
+system.time({
+grid_results <- foreach (cost = cost_values, .errorhandling="remove", .combine = rbind) %:%
+          foreach (epsilon = epsilon_values, .errorhandling="remove", .combine = rbind) %:%
+          foreach (gamma = gamma_values, .errorhandling="remove", .packages=(.packages()), .combine = rbind) %dopar% {
     
-    description <- sprintf("cost = %s, gamma = %s, epsilon = %s", cost, gamma, epsilon)
-    print(description)
-    
-    # train SVM model with a particular set of hyperparamets
-    model <- svm(mpg ~ ., data = train,
-                 cost = cost, gamma = gamma, epsilon = epsilon)
-    
-    # Get model predictions
-    predictions_train <- predict(model, newdata = train)
-    predictions_val <- predict(model, newdata = val)
-    
-    # Get errors
-    errors_train <- predictions_train - train$mpg
-    errors_val <- predictions_val - val$mpg
-    
-    # Compute Metrics
-    mse_train <- round(mean(errors_train^2), 2)
-    mae_train <- round(mean(abs(errors_train)), 2)
-    
-    mse_val <- round(mean(errors_val^2), 2)
-    mae_val <- round(mean(abs(errors_val)), 2)
-    
-    # Build comparison table
-    grid_results <- rbind(grid_results,
-                          data.table(
-                            cost = cost,
-                            gamma = gamma,
-                            epsilon = epsilon,
-                            # description = description,
-                            mse_train = mse_train, 
-                            mae_train = mae_train,
-                            mse_val = mse_val, 
-                            mae_val = mae_val))
-    
+            description <- sprintf("cost = %s, gamma = %s, epsilon = %s", cost, gamma, epsilon)
+            print(description)
+            
+            # train SVM model with a particular set of hyperparamets
+            model <- svm(WeatherStation ~ ., data = data_train, cost = cost, gamma = gamma, epsilon = epsilon)
+            
+            # Get model predictions
+            predictions_train <- predict(model, newdata = data_train)
+            predictions_val <- predict(model, newdata = data_val)
+            # Get errors
+            errors_train <- predictions_train - data_train$WeatherStation
+            errors_val <- predictions_val - data_val$WeatherStation
+            # Compute Metrics
+            mse_train <- mean(errors_train^2)
+            mae_train <- mean(abs(errors_train))
+            mse_val <- mean(errors_val^2)
+            mae_val <- mean(abs(errors_val))
+            
+            # Build comparison table
+            return(data.table(
+              cost = cost,
+              epsilon = epsilon,
+              gamma = gamma,
+              description = description,
+              mse_train = mse_train, 
+              mae_train = mae_train,
+              mse_val = mse_val, 
+              mae_val = mae_val))
     }
-#   }
-# }
+})
 
-# View results
-# View(grid_results)
+stopCluster(cl)
 
 # Order results by increasing mse and mae
 grid_results <- grid_results[order(mse_val, mae_val)]
-
-# Check results
-# View(grid_results)
-# grid_results[1] # Best hyperparameters
-# grid_results[which.max(mse_train)] # Underfitting! High bias-low variance (Bias-Variance tradeoff)
-
 # Get optimized hyperparameters
 best <- grid_results[1]
-# best
 ```
-
-# Final model
-## Train
 
 ```{r}
 
 ### Train final model
 # train SVM model with best found set of hyperparamets
-model <- svm(mpg ~ ., data = rbind(train,val), 
-             cost = best$cost, epsilon = best$epsilon, gamma = best$gamma)
+model <- svm(WeatherStation ~ ., data = rbind(data_train, data_val), cost = best$cost, epsilon = best$epsilon, gamma = best$gamma)
 
 # Get model predictions
-predictions_train <- predict(model, newdata = train)
-predictions_val <- predict(model, newdata = val)
-predictions_test <- predict(model, newdata = test)
+predictions_train <- predict(model, newdata = data_train)
+predictions_val <- predict(model, newdata = data_val)
+# Get errors
+errors_train <- predictions_train - data_train$WeatherStation
+errors_val <- predictions_val - data_val$WeatherStation
+# Compute Metrics
+mse_train <- mean(errors_train^2)
+mae_train <- mean(abs(errors_train))
+mse_val <- mean(errors_val^2)
+mae_val <- mean(abs(errors_val))
 
+ggplot()+
+  geom_point(aes(y=predictions_train, x=1:nrow(data_train)), color = 'red') +
+  geom_point(aes(y=data_train$WeatherStation, x=1:nrow(data_train)), color = 'blue')
 ```
 
-## Calculate errors
+## Using caret library
 
 ```{r}
+# Parameters
+x <- 'KENT'
+col_importance_number <- 40
+
+# Subset selection
+data_train <- bind_cols(WeatherStation = data_solar_add_train[[x]], 
+                  select(data_solar_add_train, data_col_importance[[x]][1:col_importance_number]))
+data_val <- bind_cols(WeatherStation = data_solar_add_val[[x]], 
+                  select(data_solar_add_val, data_col_importance[[x]][1:col_importance_number]))
+
+# Control
+fitControl <- trainControl(method = "repeatedcv",   
+                           number = 5,     # number of folds
+                           repeats = 2,    # repeated ten times
+                           search = "random",
+                           allowParallel = TRUE)
+
+lambdaGrid <- expand.grid(C = 10^seq(from = -2, to = 1, by = 0.5),
+                          sigma = 10^seq(from = -3, to = -1, by = 0.5))
+
+# Parallel grid search
+cl<-makeCluster(detectCores())
+registerDoParallel(cl)
+
+# Model
+system.time({
+model_cv <- caret::train(WeatherStation ~ .,
+                  data = data_train,
+                  method = "svmRadialSigma",
+                  metric = "RMSE",
+                  tuneLength = 30,
+                  trControl = fitControl,
+                  preProcess = c('scale', 'center'),
+                  tuneGrid = lambdaGrid,
+                  na.action = na.omit)
+})
+
+stopCluster(cl)
+
+model_cv
+```
+
+```{r}
+# Get model predictions
+predictions_train <- predict(model_cv, newdata = data_train)
+predictions_val <- predict(model_cv, newdata = data_val)
 # Get errors
-errors_train <- predictions_train - train$mpg
-errors_val <- predictions_val - val$mpg
-errors_test <- predictions_test - test$mpg
-
+errors_train <- predictions_train - data_train$WeatherStation
+errors_val <- predictions_val - data_val$WeatherStation
 # Compute Metrics
-mse_train <- round(mean(errors_train^2), 2)
-mae_train <- round(mean(abs(errors_train)), 2)
+mse_train <- mean(errors_train^2)
+mae_train <- mean(abs(errors_train))
+mse_val <- mean(errors_val^2)
+mae_val <- mean(abs(errors_val))
 
-mse_val <- round(mean(errors_val^2), 2)
-mae_val <- round(mean(abs(errors_val)), 2)
-
-mse_test <- round(mean(errors_test^2), 2)
-mae_test <- round(mean(abs(errors_test)), 2)
+ggplot()+
+  geom_point(aes(y=predictions_train, x=1:nrow(data_train)), color = 'red') +
+  geom_point(aes(y=data_train$WeatherStation, x=1:nrow(data_train)), color = 'blue')
 ```
