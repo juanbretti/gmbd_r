@@ -558,119 +558,181 @@ p_boxplot <- ggplot(data = data, aes(x = Value/1e6)) +
 layout <- matrix(c(1,1,1,2),4,1, byrow=TRUE)
 multiplot(p_histogram_density, p_boxplot, layout = layout)
 
-# ################################ [7.9] JPBM: DISTRIBUTION OF ADDITIONAL DATASET VALUES #####################################
-# 
-# data <- data_add %>% 
-#   pivot_longer(cols = all_of(data_add_col), names_to = 'Variables', values_to = 'Value')
-# 
-# p_histogram_density <- ggplot(data = data, aes(x = Value/1e6)) +
-#   geom_histogram(aes(y=..density..), colour="black", fill="white") +
-#   geom_density(alpha=.2, fill="blue") +
-#   labs(x = '', y = 'Density')
-# 
-# p_boxplot <- ggplot(data = data, aes(x = Value/1e6)) +
-#   geom_boxplot() +
-#   stat_boxplot(coef = 1.5, outlier.colour = 'red', outlier.alpha = 0.1) +
-#   theme(axis.title.y=element_blank(),
-#         axis.text.y=element_blank(),
-#         axis.ticks.y=element_blank()) +
-#   labs(x = 'Production in million', y = '')
-# 
-# layout <- matrix(c(1,1,1,2),4,1, byrow=TRUE)
-# multiplot(p_histogram_density, p_boxplot, layout = layout)
-# 
-# mean_ <- data_add %>% 
-#   dplyr::select(all_of(data_add_col)) %>% 
-#   summarise_all(~mean(., na.rm = TRUE)) %>% 
-#   pivot_longer(cols = everything(), names_to = 'Variables', values_to = 'Mean')
-# 
-# median_ <- data_add %>% 
-#   dplyr::select(all_of(data_add_col)) %>% 
-#   summarise_all(~median(., na.rm = TRUE)) %>% 
-#   pivot_longer(cols = everything(), names_to = 'Variables', values_to = 'Median')
-# 
-# sd_ <- data_add %>% 
-#   dplyr::select(all_of(data_add_col)) %>% 
-#   summarise_all(~sd(., na.rm = TRUE)) %>% 
-#   pivot_longer(cols = everything(), names_to = 'Variables', values_to = 'SD')
-# 
-# na_ <- data_add %>% 
-#   dplyr::select(all_of(data_add_col)) %>% 
-#   summarise_all(~sum(is.na(.))/length(.)) %>% 
-#   pivot_longer(cols = everything(), names_to = 'Variables', values_to = 'NA_')
-# 
-# stats_ <- mean_ %>% 
-#   left_join(median_, by = 'Variables') %>% 
-#   left_join(sd_, by = 'Variables') %>% 
-#   left_join(na_, by = 'Variables')
-# 
-# p_mean <- stats_ %>% 
-#   ggplot(aes(Mean)) +
-#   geom_histogram(fill = 'blue') +
-#   labs(x = 'Feature Mean', y = 'Count')
-# 
-# p_median <- stats_ %>% 
-#   ggplot(aes(Median)) +
-#   geom_histogram(fill = 'red') +
-#   labs(x = 'Feature Median', y = 'Count')
-# 
-# p_sd <- stats_ %>% 
-#   ggplot(aes(SD)) +
-#   geom_histogram(fill = 'green') +
-#   labs(x = 'Feature Standard Deviation', y = 'Count')
-# 
-# p_na <- stats_ %>% 
-#   ggplot(aes(NA_)) +
-#   geom_histogram(fill = 'orange') +
-#   labs(x = 'Percentage of NA', y = 'Count')
-# 
-# p_mean_sd <- stats_ %>% 
-#   ggplot(aes(x = Mean, y = SD)) +
-#   geom_point(color = 'darkgreen') +
-#   labs(x = 'Mean', y = 'Standard Deviation')
-# 
-# layout <- matrix(c(1,2,3,4,5,5),3,2, byrow=TRUE)
-# multiplot(p_mean, p_median, p_sd, p_na, p_mean_sd, layout = layout)
-# 
+# ################################ [10.1] JPBM: DISTRIBUTION OF ADDITIONAL DATASET VALUES #####################################
 
-# 
-# ################################ [8] VISUALIZATION OF CORRELATIONS #####################################
+data <- data_add %>%
+  pivot_longer(cols = all_of(data_add_col), names_to = 'Variables', values_to = 'Value')
 
-# ################################ [8.2] JPBM: CORRELATION BETWEEN ADDITIONAL INFORMATION #####################################
-# 
-# data <- data_add[, ..data_add_col]
-# 
-# # https://stackoverflow.com/questions/17079637/correlation-matrix-in-r-returning-na-values
-# cor_ <- cor(data, use="pairwise.complete.obs")
-# 
-# # http://www.sthda.com/english/wiki/visualize-correlation-matrix-using-correlogram
-# cor.mtest <- function(mat, ...) {
-#   mat <- as.matrix(mat)
-#   n <- ncol(mat)
-#   p.mat<- matrix(NA, n, n)
-#   diag(p.mat) <- 0
-#   for (i in 1:(n - 1)) {
-#     for (j in (i + 1):n) {
-#       tmp <- cor.test(mat[, i], mat[, j], ...)
-#       p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
-#     }
-#   }
-#   colnames(p.mat) <- rownames(p.mat) <- colnames(mat)
-#   p.mat
-# }
-# # matrix of the p-value of the correlation
-# p.mat <- cor.mtest(data)
-# 
-# dat <- data.frame(cor = matrix(cor_))
-# ggplot(dat, aes(x = cor)) +
-#   geom_histogram(aes(y=..density..), colour="black", fill="white") +
-#   geom_density(alpha=.2, fill="blue") +
-#   labs(x = 'Paerson correlation', y = 'Density')
-# 
-# p_corrplot <- corrplot(cor_, type="upper", order="hclust", p.mat = p.mat, sig.level = 0.01, insig = "blank")
-# 
+p_histogram_density <- ggplot(data = data, aes(x = Value/1e6)) +
+  geom_histogram(aes(y=..density..), colour="black", fill="white") +
+  geom_density(alpha=.2, fill="blue") +
+  labs(x = '', y = 'Density')
 
-# 
+p_boxplot <- ggplot(data = data, aes(x = Value/1e6)) +
+  geom_boxplot() +
+  stat_boxplot(coef = 1.5, outlier.colour = 'red', outlier.alpha = 0.1) +
+  theme(axis.title.y=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank()) +
+  labs(x = 'Production in million', y = '')
+
+layout <- matrix(c(1,1,1,2),4,1, byrow=TRUE)
+multiplot(p_histogram_density, p_boxplot, layout = layout)
+
+mean_ <- data_add %>%
+  dplyr::select(all_of(data_add_col)) %>%
+  summarise_all(~mean(., na.rm = TRUE)) %>%
+  pivot_longer(cols = everything(), names_to = 'Variables', values_to = 'Mean')
+
+median_ <- data_add %>%
+  dplyr::select(all_of(data_add_col)) %>%
+  summarise_all(~median(., na.rm = TRUE)) %>%
+  pivot_longer(cols = everything(), names_to = 'Variables', values_to = 'Median')
+
+sd_ <- data_add %>%
+  dplyr::select(all_of(data_add_col)) %>%
+  summarise_all(~sd(., na.rm = TRUE)) %>%
+  pivot_longer(cols = everything(), names_to = 'Variables', values_to = 'SD')
+
+na_ <- data_add %>%
+  dplyr::select(all_of(data_add_col)) %>%
+  summarise_all(~sum(is.na(.))/length(.)) %>%
+  pivot_longer(cols = everything(), names_to = 'Variables', values_to = 'NA_')
+
+stats_ <- mean_ %>%
+  left_join(median_, by = 'Variables') %>%
+  left_join(sd_, by = 'Variables') %>%
+  left_join(na_, by = 'Variables')
+
+p_mean <- stats_ %>%
+  ggplot(aes(Mean)) +
+  geom_histogram(fill = 'blue') +
+  labs(x = 'Feature Mean', y = 'Count')
+
+p_median <- stats_ %>%
+  ggplot(aes(Median)) +
+  geom_histogram(fill = 'red') +
+  labs(x = 'Feature Median', y = 'Count')
+
+p_sd <- stats_ %>%
+  ggplot(aes(SD)) +
+  geom_histogram(fill = 'green') +
+  labs(x = 'Feature Standard Deviation', y = 'Count')
+
+p_na <- stats_ %>%
+  ggplot(aes(NA_)) +
+  geom_histogram(fill = 'orange') +
+  labs(x = 'Percentage of NA', y = 'Count')
+
+p_mean_sd <- stats_ %>%
+  ggplot(aes(x = Mean, y = SD)) +
+  geom_point(color = 'darkgreen') +
+  labs(x = 'Mean', y = 'Standard Deviation')
+
+layout <- matrix(c(1,2,3,4,5,5),3,2, byrow=TRUE)
+multiplot(p_mean, p_median, p_sd, p_na, p_mean_sd, layout = layout)
+
+# ################################ [10.2] JPBM: CORRELATION BETWEEN ADDITIONAL INFORMATION #####################################
+
+data <- data_add[, ..data_add_col]
+
+# https://stackoverflow.com/questions/17079637/correlation-matrix-in-r-returning-na-values
+cor_ <- cor(data, use="pairwise.complete.obs")
+
+# http://www.sthda.com/english/wiki/visualize-correlation-matrix-using-correlogram
+cor.mtest <- function(mat, ...) {
+  mat <- as.matrix(mat)
+  n <- ncol(mat)
+  p.mat<- matrix(NA, n, n)
+  diag(p.mat) <- 0
+  for (i in 1:(n - 1)) {
+    for (j in (i + 1):n) {
+      tmp <- cor.test(mat[, i], mat[, j], ...)
+      p.mat[i, j] <- p.mat[j, i] <- tmp$p.value
+    }
+  }
+  colnames(p.mat) <- rownames(p.mat) <- colnames(mat)
+  p.mat
+}
+# matrix of the p-value of the correlation
+p.mat <- cor.mtest(data)
+
+dat <- data.frame(cor = matrix(cor_))
+ggplot(dat, aes(x = cor)) +
+  geom_histogram(aes(y=..density..), colour="black", fill="white") +
+  geom_density(alpha=.2, fill="blue") +
+  labs(x = 'Paerson correlation', y = 'Density')
+
+p_corrplot <- corrplot(cor_, type="upper", order="hclust", p.mat = p.mat, sig.level = 0.01, insig = "blank")
+
+
+################################# [10.3] JPBM: USE 'MICE' TO COMLETE 'ADDITIONAL DATA' VALUES #####################################
+
+data <- data_add[, ..data_add_col]
+
+m_ <- 5
+# df2 <- mice(data, m=m_, maxit=10, meth='pmm', seed=500)
+# saveRDS(df2, file.path('storage', 'data_add_mice.rds'))
+df2 <- readRDS(file.path('storage', 'data_add_mice.rds'))
+# summary(df2)
+
+# Average of all the Multivariate Imputation
+df3 <- 0
+for (i in 1:m_) df3 <- df3 + complete(df2, i)
+df3 <- df3/m_
+
+################################ [10.4] OUTLIERS IN ADDITIONAL DATASET ####################
+
+f_scores <- function(x) {
+  data <- data_add[[x]]
+  data <- data[!is.na(data)]
+  res <- outliers::scores(data, type = 'z')
+  return(res)
+}
+
+data_add_scores <- lapply(data_add_col, f_scores)
+names(data_add_scores) <- data_add_col
+
+skim(data_add_scores)
+hist(unlist(data_add_scores))
+table(
+  abs(unlist(data_add_scores))>=3
+)
+
+
+
+######### [10.5] PCA FOR ADDITIONAL DATASET ################
+
+pca_threshold <- 0.90
+model_ <- preProcess(df3, method = c("pca"), thresh = pca_threshold)
+df4 <- predict(model_, df3)
+
+data_add_col_pca <- colnames(df4)
+data_add_pca <- bind_cols(data_add[, ..data_add_col_dates], df4)
+
+################# [10.5.1] HISTOGRAM DENSITY KERNEL AND BOXPLOT ###################
+
+data <- data_add_pca %>%
+  pivot_longer(cols = all_of(data_add_col_pca), names_to = 'PC', values_to = 'Value') %>%
+  mutate(PC_ = factor(PC, levels = data_add_col_pca))
+
+p_histogram_density <- ggplot(data = data, aes(x = Value)) +
+  geom_histogram(aes(y=..density..), colour="black", fill="white") +
+  geom_density(alpha=.2, fill="blue") +
+  facet_wrap(vars(PC_))
+
+p_boxplot <- ggplot(data = data, aes(x = Value)) +
+  geom_boxplot() +
+  stat_boxplot(coef = 1.5, outlier.colour = 'red', outlier.alpha = 0.1) +
+  facet_wrap(vars(PC_)) +
+  theme(axis.title.y=element_blank(),
+        axis.text.y=element_blank(),
+        axis.ticks.y=element_blank())
+
+p_histogram_density
+p_boxplot
+
+
 # ################################ [9.4] GVA:  GEOMETRICS #####################################
 # 
 # #Returns the geometrics for the group and for the MAIN map for station_geo
@@ -738,53 +800,3 @@ multiplot(p_histogram_density, p_boxplot, layout = layout)
 
 
 
-# ################################ [3.3] JPBM: USE 'MICE' TO COMLETE 'ADDITIONAL DATA' VALUES #####################################
-# 
-# data <- data_add[, ..data_add_col]
-# 
-# m_ <- 5
-# # df2 <- mice(data, m=m_, maxit=10, meth='pmm', seed=500)
-# # saveRDS(df2, file.path('storage', 'data_add_mice.rds'))
-# df2 <- readRDS(file.path('storage', 'data_add_mice.rds'))
-# # summary(df2)
-# 
-# # Average of all the Multivariate Imputation
-# df3 <- 0
-# for (i in 1:m_) df3 <- df3 + complete(df2, i)
-# df3 <- df3/m_
-# 
-# #PCA 
-# 
-# pca_threshold <- 0.90
-# model_ <- preProcess(df3, method = c("pca"), thresh = pca_threshold)
-# df4 <- predict(model_, df3)
-# 
-# data_add_col_pca <- colnames(df4)
-# data_add_pca <- bind_cols(data_add[, ..data_add_col_dates], df4)
-# 
-# #HISTOGRAM DENSITY KERNEL AND BOXPLOT
-# 
-# data <- data_add_pca %>% 
-#   pivot_longer(cols = all_of(data_add_col_pca), names_to = 'PC', values_to = 'Value') %>% 
-#   mutate(PC_ = factor(PC, levels = data_add_col_pca))
-# 
-# p_histogram_density <- ggplot(data = data, aes(x = Value)) +
-#   geom_histogram(aes(y=..density..), colour="black", fill="white") +
-#   geom_density(alpha=.2, fill="blue") +
-#   facet_wrap(vars(PC_))
-# 
-# p_boxplot <- ggplot(data = data, aes(x = Value)) +
-#   geom_boxplot() +
-#   stat_boxplot(coef = 1.5, outlier.colour = 'red', outlier.alpha = 0.1) +
-#   facet_wrap(vars(PC_)) +
-#   theme(axis.title.y=element_blank(),
-#         axis.text.y=element_blank(),
-#         axis.ticks.y=element_blank())
-# 
-# p_histogram_density
-# 
-# p_boxplot
-
-
-
-# 
