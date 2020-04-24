@@ -334,3 +334,7 @@ ggplot()+
   geom_point(aes(y=predictions_train, x=1:nrow(data_train)), color = 'red') +
   geom_point(aes(y=data_train$WeatherStation, x=1:nrow(data_train)), color = 'blue')
 ```
+
+
+Alternative
+https://rpubs.com/Mai_Thanh_Nguyen/442886
