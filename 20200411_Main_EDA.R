@@ -105,13 +105,13 @@ criteria_variables(data_solar_test)
 criteria_variables(data_station)
 criteria_variables(data_add)
 
-########################### [2.3] Outliers #############################
+######################################### [2.3] Outliers #########################################
 
 ##Based on:
 ##https://www.kaggle.com/rtatman/data-cleaning-challenge-outliers
 ##https://cran.r-project.org/web/packages/outliers/outliers.pdf
 
-########################## [2.3.1] Outliers In Solar Production ##########
+######################################### [2.3.1] Outliers In Solar Production ###################
 
 data_solar_produ_scores <- lapply(data_solar_col_produ, function(x) scores(data_solar_train[[x]], type = 'z'))
 names(data_solar_produ_scores) <- data_solar_col_produ
@@ -124,11 +124,11 @@ table(
   abs(unlist(data_solar_produ_scores))>=3
 )
 
-################################# [3] Solar Production Dataset Overview ###############
-######### [3.1] Training set ######
+############################################ [3] Solar Production Dataset Overview ##############################
+########################################## [3.1] Training set #######################################
 skim(data_solar_train)
 glimpse(data_solar_train)
-######### [3.2] Test set ######
+###########################################3 [3.2] Test set ##########################
 skim(data_solar_test)
 glimpse(data_solar_test)
 
@@ -143,7 +143,7 @@ skim(data_add)
 glimpse(data_add)
 
 ################################ [5] JP Descriptive Plots   ####################
-####################### JP Multiplot function#############
+################################ Multiplot function#############
 
 # Multiple plot function
 #
@@ -251,7 +251,7 @@ p_rank <- data_solar_train %>%
 
 p_rank
 
-######### [5.3] All production data ######## 
+####################################### [5.3] All production data ################################
 
 p_all <- data_solar_train %>%
   select(all_of(c(data_solar_col_dates, data_solar_col_produ))) %>% 
@@ -307,7 +307,7 @@ p_month <- data_solar_train %>%
 
 multiplot(p_all, p_month)
 
-######## [5.5] ########Training vs Test
+#################################### [5.5]Training vs Test  ###################################
 p_train_test <- data_solar %>% 
   mutate(DataSet = ifelse(row_number()<=5113, 'Train', 'Test')) %>%
   group_by(Year, DataSet) %>% 
@@ -320,7 +320,7 @@ p_train_test <- data_solar %>%
 
 p_train_test
 
-################ [6] SEASONALITY #######
+####################################### [6] SEASONALITY ########################################
 # ################################ [6.1] JPBM: SEASONALITY - HOW DOES THE PRODUCTION OF ALL WEATHER STATIONS CHANGE OVER TIME AND HOW MUCH OF THE PRODUCTION IS EXPLAINED / TREND / RANDOM  #####################################
 
 data <- data_solar_train %>%
@@ -351,8 +351,8 @@ data <- data_solar_train %>%
 # bb <- lapply(principal_weather_station[1:top_], function(x) plot(data[[x]]))
 lapply(principal_weather_station[1:top_], function(x) plot(data[[x]]$trend, main = x, ylab = 'Value'))
 
-########################### [7] GEOGRAPHY ###################
-################################# [7.1] JPBM: POSITIONS #####################################
+######################################## [7] GEOGRAPHY ######################################
+###################################### [7.1] JPBM: POSITIONS #####################################
 
 data <- data_solar_train %>%
   select(-data_solar_col_predi) %>%
@@ -374,7 +374,7 @@ m1 <- leaflet(data = data) %>%
 
 m1
 
-################################# [7.2] JPBM: HEATMAP #####################################
+##################################### [7.2] JPBM: HEATMAP #####################################
 
 data <- data_solar_train %>% 
   select(-data_solar_col_predi) %>% 
@@ -390,7 +390,7 @@ m1 <- leaflet(data = data) %>%
 
 m1
 
-################################# [7.3] JPBM: SEASONAL DECOMPOSITION #####################################
+##################################### [7.3] JPBM: SEASONAL DECOMPOSITION #####################################
 
 top_ <- 5
 
@@ -538,7 +538,7 @@ data_solar_importance <- readRDS(file.path('storage', 'data_solar_importance_par
 names(data_solar_importance) <- principal_weather_station[1:top_]
 
 
-####################### [10] ADDITIONAL DATASET FEATURE VISUALIZATION ##########
+################################# [10] ADDITIONAL DATASET FEATURE VISUALIZATION ########################
 data <- data_add %>% 
   pivot_longer(cols = all_of(data_add_col), names_to = 'Variables', values_to = 'Value')
 
@@ -701,7 +701,7 @@ table(
 
 
 
-######### [10.5] PCA FOR ADDITIONAL DATASET ################
+############################### [10.5] PCA FOR ADDITIONAL DATASET ############################
 
 pca_threshold <- 0.90
 model_ <- preProcess(df3, method = c("pca"), thresh = pca_threshold)
@@ -710,7 +710,7 @@ df4 <- predict(model_, df3)
 data_add_col_pca <- colnames(df4)
 data_add_pca <- bind_cols(data_add[, ..data_add_col_dates], df4)
 
-################# [10.5.1] HISTOGRAM DENSITY KERNEL AND BOXPLOT ###################
+############################## [10.5.1] HISTOGRAM DENSITY KERNEL AND BOXPLOT #######################
 
 data <- data_add_pca %>%
   pivot_longer(cols = all_of(data_add_col_pca), names_to = 'PC', values_to = 'Value') %>%
@@ -757,46 +757,46 @@ p_boxplot
 # 
 # # Loop through the addresses to get the latitude and longitude of each address and add it to the
 # # origAddress data frame in new columns lat and lon
-# from_to_adrr_gps <- function (df){
-#   geocoded <- data.frame(stringsAsFactors = FALSE);
-#   #df <- dat_act_cust;
-#   df$lon <- 0;
-#   df$lat <- 0;
-#   df$geoAddress <- "";
-#   str(df)
-#   
-#   for(i in 1:nrow(df))
-#   {
-#     result <- geocode(df$`Bill to`[i], output = "latlona", source = "google")
-#     if (!is.na(result)){
-#       df$lon[i] <- as.numeric(result[1])
-#       df$lat[i] <- as.numeric(result[2])
-#       df$geoAddress[i] <- as.character(result[3])
-#       
-#     } else {
-#       df$lon[i] <- 0
-#       df$lat[i] <- 0
-#       df$geoAddress[i] <- "error"
-#     }
-#     
-#     
-#   }
-#   return (df)
-# }
-# 
-# ##Give a plot of a terrain map with a layer of data ontop
-# plot_map <- function(plt_clong, plt_clat, plt_long, plt_lat, plt_zoom, plt_data, plt_size, plt_col = "red"){
-#   p <- ggmap(get_googlemap(center = c(lon = plt_clong, lat = plt_clat),
-#                            zoom = plt_zoom, scale = 2,
-#                            maptype ='terrain',
-#                            color = 'color'));
-#   p + geom_point(aes(x = plt_data$lon, y = plt_data$lat, color = plt_col), data = plt_data, size = plt_size) + 
-#     theme(legend.position="bottom");
-#   
-#   #return(p)
-# }
-# 
-# #Anything that comes to your mind and makes sense. Creativity will be rewarded.
+from_to_adrr_gps <- function (df){
+  geocoded <- data.frame(stringsAsFactors = FALSE);
+  #df <- dat_act_cust;
+  df$lon <- 0;
+  df$lat <- 0;
+  df$geoAddress <- "";
+  str(df)
+
+  for(i in 1:nrow(df))
+  {
+    result <- geocode(df$`Bill to`[i], output = "latlona", source = "google")
+    if (!is.na(result)){
+      df$lon[i] <- as.numeric(result[1])
+      df$lat[i] <- as.numeric(result[2])
+      df$geoAddress[i] <- as.character(result[3])
+
+    } else {
+      df$lon[i] <- 0
+      df$lat[i] <- 0
+      df$geoAddress[i] <- "error"
+    }
+
+
+  }
+  return (df)
+}
+
+##Give a plot of a terrain map with a layer of data ontop
+plot_map <- function(plt_clong, plt_clat, plt_long, plt_lat, plt_zoom, plt_data, plt_size, plt_col = "red"){
+  p <- ggmap(get_googlemap(center = c(lon = plt_clong, lat = plt_clat),
+                           zoom = plt_zoom, scale = 2,
+                           maptype ='terrain',
+                           color = 'color'));
+  p + geom_point(aes(x = plt_data$lon, y = plt_data$lat, color = plt_col), data = plt_data, size = plt_size) +
+    theme(legend.position="bottom");
+
+  #return(p)
+}
+
+#Anything that comes to your mind and makes sense. Creativity will be rewarded.
 
 
 
