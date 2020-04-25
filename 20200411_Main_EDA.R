@@ -19,6 +19,8 @@ library(forecast)
 library(leaflet)
 library(leaflet.extras)
 library(caret)
+library(sf)
+library(gdtools)
 
 ################################ [1] LOAD DATA & TRANSFORM #############################
 
@@ -105,13 +107,13 @@ criteria_variables(data_solar_test)
 criteria_variables(data_station)
 criteria_variables(data_add)
 
-######################################### [2.3] Outliers #########################################
+#################################### [2.3] Outliers #########################################
 
 ##Based on:
 ##https://www.kaggle.com/rtatman/data-cleaning-challenge-outliers
 ##https://cran.r-project.org/web/packages/outliers/outliers.pdf
 
-######################################### [2.3.1] Outliers In Solar Production ###################
+#################################### [2.3.1] Outliers In Solar Production ###################
 
 data_solar_produ_scores <- lapply(data_solar_col_produ, function(x) scores(data_solar_train[[x]], type = 'z'))
 names(data_solar_produ_scores) <- data_solar_col_produ
@@ -124,26 +126,26 @@ table(
   abs(unlist(data_solar_produ_scores))>=3
 )
 
-############################################ [3] Solar Production Dataset Overview ##############################
+################################ [3] Solar Production Dataset Overview ##############################
 ########################################## [3.1] Training set #######################################
 skim(data_solar_train)
 glimpse(data_solar_train)
-###########################################3 [3.2] Test set ##########################
+###########################################3 [3.2] Test set ########################################
 skim(data_solar_test)
 glimpse(data_solar_test)
 
-################################# [4] Solar Station Dataset Overview ###############
+################################# [4] Solar Station Dataset Overview ###############################
 
 skim(data_station)
 glimpse(data_station)
 
-################################# [4] Additional information Dataset Overview ###############
+################################# [4] Additional information Dataset Overview #############################
 
 skim(data_add)
 glimpse(data_add)
 
-################################ [5] JP Descriptive Plots   ####################
-################################ Multiplot function#############
+################################ [5]Descriptive Plots   ##############################################
+################################### Multiplot function #############################################
 
 # Multiple plot function
 #
@@ -193,7 +195,9 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
 };
 
 
-################################ [5.1] Principal Weather Stations   ####################
+################################ [5.1] Principal Weather Stations   ###############################
+
+## Ranking stations by the solar energy production volume
 
 principal_weather_station <- data_solar_train %>%
   pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>%
@@ -231,7 +235,7 @@ p_bottom <- data_solar_train %>%
 
  multiplot(p_top, p_bottom)
 
-################################ [5.2] JPBM:  RANK (IN TERMS OF PRODUCTION) CHANGE OVER TIME  ################################
+################################ [5.2] RANK (IN TERMS OF PRODUCTION) CHANGE OVER TIME  ################################
 
 top_ <- 10
 
@@ -285,7 +289,7 @@ layout <- matrix(c(1,1,1,2,3,4),2,3, byrow=TRUE)
 multiplot(p_all, p_year, p_month, p_Day_Of_Week, layout=layout)
 
 
-# ################################ [5.4] JPBM: DEVELOPMENT OF PRODUCTION VOLUME OVER TIME FOR THE 5 HIGHEST PRODUCING WEATHER STATIONS  #####################################
+################################# [5.4] DEVELOPMENT OF PRODUCTION VOLUME OVER TIME FOR THE 5 HIGHEST PRODUCING WEATHER STATIONS  #####################################
 
 top_ <- 5
 
@@ -321,7 +325,7 @@ p_train_test <- data_solar %>%
 p_train_test
 
 ####################################### [6] SEASONALITY ########################################
-# ################################ [6.1] JPBM: SEASONALITY - HOW DOES THE PRODUCTION OF ALL WEATHER STATIONS CHANGE OVER TIME AND HOW MUCH OF THE PRODUCTION IS EXPLAINED / TREND / RANDOM  #####################################
+########################### [6.1] JPBM: SEASONALITY - HOW DOES THE PRODUCTION OF ALL WEATHER STATIONS CHANGE OVER TIME AND HOW MUCH OF THE PRODUCTION IS EXPLAINED / TREND / RANDOM  #####################################
 
 data <- data_solar_train %>%
   pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>%
@@ -332,7 +336,7 @@ data <- data_solar_train %>%
 data2 <- ts(data = data$ValueMean/1e6, frequency = 365, start = c(1994, 1, 01), end = c(2007, 12, 31))
 plot(decompose(data2))
 
-# ################################ [6.2] JPBM: TREND VISUALIZATION FOR THE TOP 5 WEATHEER STATIONS  #####################################
+# ################################ [6.2] TREND VISUALIZATION FOR THE TOP 5 WEATHEER STATIONS  #####################################
 
 top_ <- 5
 
@@ -352,7 +356,7 @@ data <- data_solar_train %>%
 lapply(principal_weather_station[1:top_], function(x) plot(data[[x]]$trend, main = x, ylab = 'Value'))
 
 ######################################## [7] GEOGRAPHY ######################################
-###################################### [7.1] JPBM: POSITIONS #####################################
+###################################### [7.1] POSITIONS #####################################
 
 data <- data_solar_train %>%
   select(-data_solar_col_predi) %>%
@@ -374,7 +378,7 @@ m1 <- leaflet(data = data) %>%
 
 m1
 
-##################################### [7.2] JPBM: HEATMAP #####################################
+##################################### [7.2] HEATMAP #####################################
 
 data <- data_solar_train %>% 
   select(-data_solar_col_predi) %>% 
@@ -390,7 +394,7 @@ m1 <- leaflet(data = data) %>%
 
 m1
 
-##################################### [7.3] JPBM: SEASONAL DECOMPOSITION #####################################
+##################################### [7.3] SEASONAL DECOMPOSITION #####################################
 
 top_ <- 5
 
@@ -419,7 +423,7 @@ m1 <- leaflet() %>%
 m1
 
 
-# ################################ [8] JPBM: COMPUTE CORRELATIONS BETWEEN TOP 5 WEATHER STATIONS (IN TERMS OF PRODUCTION) & TOP 10 PREDICTORS #####################################
+# ################################ [8] COMPUTE CORRELATIONS BETWEEN TOP 5 WEATHER STATIONS (IN TERMS OF PRODUCTION) & TOP 10 PREDICTORS #####################################
 
 top_ <- 5
 top_pc <- 10
@@ -429,7 +433,7 @@ data <- data_solar_train %>%
 
 chart.Correlation(data, histogram=TRUE) #, pch=19
 
-################################# [9] JPBM: HISTOGRAM, DENSITY KERNEL AND BOXPLOT ##################
+################################# [9] HISTOGRAM, DENSITY KERNEL AND BOXPLOT ########################
 ##################################[9.1] FOR GENERAL PRODUCTION #####################################
 
 data <- data_solar_train %>%
@@ -457,7 +461,7 @@ p_boxplot <- ggplot(data = data, aes(x = Value/1e6)) +
 layout <- matrix(c(1,1,1,2),4,1, byrow=TRUE)
 multiplot(p_histogram_density, p_boxplot, layout = layout)
 
-# ################################ [9.2] JPBM: FOR EACH WEATHER STATION AND PREDICTORS #####################################
+# ################################ [9.2] FOR EACH WEATHER STATION AND PREDICTORS #####################################
 
 
 # WEATHER STATION
@@ -505,7 +509,7 @@ ggplot(data = data, aes(x = Value)) +
         axis.text.y=element_blank(),
         axis.ticks.y=element_blank())
 
-# ################################ [10] JPBM: VARIABLE IMPORTANCE #####################################
+##################################### [10]VARIABLE IMPORTANCE #####################################
 
 top_ <- 98
 
@@ -530,7 +534,7 @@ select_important<-function(dat, n_vars, y){
 #                                   }
 # })
 print(time_importance) #1459.36
-stopCluster(cl)
+#stopCluster(cl)
 
 # saveRDS(data_solar_importance, file.path('storage', 'data_solar_importance_parallel.rds'))
 data_solar_importance <- readRDS(file.path('storage', 'data_solar_importance_parallel.rds'))
@@ -558,7 +562,7 @@ p_boxplot <- ggplot(data = data, aes(x = Value/1e6)) +
 layout <- matrix(c(1,1,1,2),4,1, byrow=TRUE)
 multiplot(p_histogram_density, p_boxplot, layout = layout)
 
-# ################################ [10.1] JPBM: DISTRIBUTION OF ADDITIONAL DATASET VALUES #####################################
+# ################################ [10.1] DISTRIBUTION OF ADDITIONAL DATASET VALUES #####################################
 
 data <- data_add %>%
   pivot_longer(cols = all_of(data_add_col), names_to = 'Variables', values_to = 'Value')
@@ -632,7 +636,7 @@ p_mean_sd <- stats_ %>%
 layout <- matrix(c(1,2,3,4,5,5),3,2, byrow=TRUE)
 multiplot(p_mean, p_median, p_sd, p_na, p_mean_sd, layout = layout)
 
-# ################################ [10.2] JPBM: CORRELATION BETWEEN ADDITIONAL INFORMATION #####################################
+# ##################################### [10.2] CORRELATION BETWEEN ADDITIONAL INFORMATION #####################################
 
 data <- data_add[, ..data_add_col]
 
@@ -666,7 +670,7 @@ ggplot(dat, aes(x = cor)) +
 p_corrplot <- corrplot(cor_, type="upper", order="hclust", p.mat = p.mat, sig.level = 0.01, insig = "blank")
 
 
-################################# [10.3] JPBM: USE 'MICE' TO COMLETE 'ADDITIONAL DATA' VALUES #####################################
+################################# [10.3] USE 'MICE' TO COMLETE 'ADDITIONAL DATA' VALUES #####################################
 
 data <- data_add[, ..data_add_col]
 
