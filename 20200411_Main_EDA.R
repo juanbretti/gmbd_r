@@ -20,7 +20,7 @@ library(leaflet)
 library(leaflet.extras)
 library(caret)
 library(sf)
-library(gdtools)
+#library(gdtools)
 
 ################################ [1] LOAD DATA & TRANSFORM #############################
 
@@ -117,11 +117,12 @@ criteria_variables(data_add)
 
 data_solar_produ_scores <- lapply(data_solar_col_produ, function(x) scores(data_solar_train[[x]], type = 'z'))
 names(data_solar_produ_scores) <- data_solar_col_produ
-skim(data_solar_produ_scores)
+solar_data_outlier_skim <- skim(data_solar_produ_scores)
 
 # summary(unlist(data_solar_produ_scores))
-hist(unlist(data_solar_produ_scores))
+solar_data_outlier_hist <- hist(unlist(data_solar_produ_scores))
 
+solar_data_outlier_table
 table(
   abs(unlist(data_solar_produ_scores))>=3
 )
