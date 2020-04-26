@@ -181,7 +181,7 @@ model_train <- function(WeatherStation, col_importance_number = 40) {
 
   # Control
   fitControl <- trainControl(method = "repeatedcv",
-                             number = 5,     # number of folds
+                             number = 5,       # number of folds
                              repeats = 4, #4   # repeated ten times
                              search = "random",
                              allowParallel = TRUE)
@@ -352,4 +352,3 @@ result_combined <- data_solar_col_produ %>%
 ggplot(result_combined) + 
   geom_histogram(aes(mae_ratio))
 ```
-

@@ -169,8 +169,7 @@ table(
 ```
 
 #### Additional data
-First, need to complete the data set to be able to use 'outl
-iers()'.
+First, need to complete the data set to be able to use 'outliers()'.
 
 ## Solar dataset
 

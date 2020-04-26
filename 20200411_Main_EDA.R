@@ -1,26 +1,35 @@
 
 ################################ [0] LIBRARIES #####################################
 
-library(dplyr)
+# General purpose
+library(tidyverse)
 library(lubridate)
 library(data.table)
-library(mice)
+# library(dplyr)
+# library(purrr)
+
+# Descriptive
 library(ggplot2)
-library(purrr)
-library(tidyverse)
-library(ggmap)
-library(PerformanceAnalytics)
 library(skimr)
-library(corrplot)
-library(doParallel);
-library(foreach)
 library(DataExplorer)
 library(forecast)
+library(PerformanceAnalytics)
+library(corrplot)
+
+# Mapping
 library(leaflet)
 library(leaflet.extras)
-library(caret)
 library(sf)
-#library(gdtools)
+library(gdtools)
+library(ggmap)
+
+# Calculations
+library(caret)
+library(mice)
+
+# Parallel
+library(doParallel)
+library(foreach)
 
 ################################ [1] LOAD DATA & TRANSFORM #############################
 
@@ -129,8 +138,10 @@ table(
 
 ################################ [3] Solar Production Dataset Overview ##############################
 ########################################## [3.1] Training set #######################################
+
 skim(data_solar_train)
 glimpse(data_solar_train)
+
 ###########################################3 [3.2] Test set ########################################
 skim(data_solar_test)
 glimpse(data_solar_test)
@@ -146,8 +157,11 @@ skim(data_add)
 glimpse(data_add)
 
 ################################ [5]Descriptive Plots   ##############################################
+
+
 ################################### Multiplot function #############################################
 
+# http://www.cookbook-r.com/Graphs/Multiple_graphs_on_one_page_(ggplot2)/
 # Multiple plot function
 #
 # ggplot objects can be passed in ..., or to plotlist (as a list of ggplot objects)
@@ -193,7 +207,7 @@ multiplot <- function(..., plotlist=NULL, file, cols=1, layout=NULL) {
                                       layout.pos.col = matchidx$col))
     }
   }
-};
+}
 
 
 ################################ [5.1] Principal Weather Stations   ###############################
@@ -326,7 +340,7 @@ p_train_test <- data_solar %>%
 p_train_test
 
 ####################################### [6] SEASONALITY ########################################
-########################### [6.1] JPBM: SEASONALITY - HOW DOES THE PRODUCTION OF ALL WEATHER STATIONS CHANGE OVER TIME AND HOW MUCH OF THE PRODUCTION IS EXPLAINED / TREND / RANDOM  #####################################
+########################### [6.1] SEASONALITY - HOW DOES THE PRODUCTION OF ALL WEATHER STATIONS CHANGE OVER TIME AND HOW MUCH OF THE PRODUCTION IS EXPLAINED / TREND / RANDOM  #####################################
 
 data <- data_solar_train %>%
   pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>%
@@ -353,7 +367,6 @@ data <- data_solar_train %>%
   group_map(~ ts_(.x$Value)) %>%
   setNames(data_solar_col_produ)
 
-# bb <- lapply(principal_weather_station[1:top_], function(x) plot(data[[x]]))
 lapply(principal_weather_station[1:top_], function(x) plot(data[[x]]$trend, main = x, ylab = 'Value'))
 
 ######################################## [7] GEOGRAPHY ######################################
@@ -365,11 +378,6 @@ data <- data_solar_train %>%
   group_by(WeatherStation) %>%
   summarise(ValueMean = mean(Value)) %>%
   left_join(data_station, by = c('WeatherStation' = 'stid'))
-
-## Note: Using an external vector in selections is ambiguous.
-## i Use `all_of(data_solar_col_predi)` instead of `data_solar_col_predi` to silence this message.
-## i See <https://tidyselect.r-lib.org/reference/faq-external-vector.html>.
-## This message is displayed once per session.
 
 m1 <- leaflet(data = data) %>%
   addTiles() %>%
@@ -423,8 +431,7 @@ m1 <- leaflet() %>%
 
 m1
 
-
-# ################################ [8] COMPUTE CORRELATIONS BETWEEN TOP 5 WEATHER STATIONS (IN TERMS OF PRODUCTION) & TOP 10 PREDICTORS #####################################
+################################ [8] COMPUTE CORRELATIONS BETWEEN TOP 5 WEATHER STATIONS (IN TERMS OF PRODUCTION) & TOP 10 PREDICTORS #####################################
 
 top_ <- 5
 top_pc <- 10
@@ -440,11 +447,6 @@ chart.Correlation(data, histogram=TRUE) #, pch=19
 data <- data_solar_train %>%
   dplyr::select(data_solar_col_produ) %>%
   pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value')
-
-## Note: Using an external vector in selections is ambiguous.
-## i Use `all_of(data_solar_col_produ)` instead of `data_solar_col_produ` to silence this message.
-## i See <https://tidyselect.r-lib.org/reference/faq-external-vector.html>.
-## This message is displayed once per session.
 
 p_histogram_density <- ggplot(data = data, aes(x = Value/1e6)) +
   geom_histogram(aes(y=..density..), colour="black", fill="white") +
@@ -463,7 +465,6 @@ layout <- matrix(c(1,1,1,2),4,1, byrow=TRUE)
 multiplot(p_histogram_density, p_boxplot, layout = layout)
 
 # ################################ [9.2] FOR EACH WEATHER STATION AND PREDICTORS #####################################
-
 
 # WEATHER STATION
 
@@ -512,7 +513,7 @@ ggplot(data = data, aes(x = Value)) +
 
 ##################################### [10]VARIABLE IMPORTANCE #####################################
 
-top_ <- 98
+top_ <- 98 #Selecting all the Weather Stations
 
 cl<-makeCluster(detectCores())
 registerDoParallel(cl)
@@ -544,6 +545,7 @@ names(data_solar_importance) <- principal_weather_station[1:top_]
 
 
 ################################# [10] ADDITIONAL DATASET FEATURE VISUALIZATION ########################
+
 data <- data_add %>% 
   pivot_longer(cols = all_of(data_add_col), names_to = 'Variables', values_to = 'Value')
 
@@ -563,7 +565,7 @@ p_boxplot <- ggplot(data = data, aes(x = Value/1e6)) +
 layout <- matrix(c(1,1,1,2),4,1, byrow=TRUE)
 multiplot(p_histogram_density, p_boxplot, layout = layout)
 
-# ################################ [10.1] DISTRIBUTION OF ADDITIONAL DATASET VALUES #####################################
+################################# [10.1] DISTRIBUTION OF ADDITIONAL DATASET VALUES #####################################
 
 data <- data_add %>%
   pivot_longer(cols = all_of(data_add_col), names_to = 'Variables', values_to = 'Value')
@@ -637,7 +639,7 @@ p_mean_sd <- stats_ %>%
 layout <- matrix(c(1,2,3,4,5,5),3,2, byrow=TRUE)
 multiplot(p_mean, p_median, p_sd, p_na, p_mean_sd, layout = layout)
 
-# ##################################### [10.2] CORRELATION BETWEEN ADDITIONAL INFORMATION #####################################
+##################################### [10.2] CORRELATION BETWEEN ADDITIONAL INFORMATION #####################################
 
 data <- data_add[, ..data_add_col]
 
@@ -704,9 +706,7 @@ table(
   abs(unlist(data_add_scores))>=3
 )
 
-
-
-############################### [10.5] PCA FOR ADDITIONAL DATASET ############################
+############################## [10.5] PCA FOR ADDITIONAL DATASET ############################
 
 pca_threshold <- 0.90
 model_ <- preProcess(df3, method = c("pca"), thresh = pca_threshold)
