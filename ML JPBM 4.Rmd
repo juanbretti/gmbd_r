@@ -340,3 +340,16 @@ model_applied <- readRDS(file.path('storage', 'model_applied.rds'))
 
 rm(list=c('cl', 'model_apply', 'model_result'))
 ```
+
+# Global results
+
+```{r}
+result_combined <- data_solar_col_produ %>% 
+  map_dfr(function(x) bind_cols(WeatherStation = x, model_applied[[x]]$result$combined)) %>% 
+  mutate(mae_ratio = mae_test/mae_train_val) %>% 
+  arrange(mae_ratio)
+
+ggplot(result_combined) + 
+  geom_histogram(aes(mae_ratio))
+```
+
