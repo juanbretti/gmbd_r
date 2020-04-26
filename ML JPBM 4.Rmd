@@ -346,9 +346,27 @@ rm(list=c('cl', 'model_apply', 'model_result'))
 ```{r}
 result_combined <- data_solar_col_produ %>% 
   map_dfr(function(x) bind_cols(WeatherStation = x, model_applied[[x]]$result$combined)) %>% 
-  mutate(mae_ratio = mae_test/mae_train_val) %>% 
+  mutate(mae_ratio = mae_test/mae_train_val,
+         fitting = ifelse(mae_ratio<1, 'Underfitting', ifelse(mae_ratio==0, 'Fit', 'Overfitting'))) %>% 
   arrange(mae_ratio)
 
 ggplot(result_combined) + 
-  geom_histogram(aes(mae_ratio))
+  geom_histogram(aes(mae_ratio, fill = fitting))
 ```
+
+# Submission File
+Submission: https://www.kaggle.com/c/ams-2014-solar-energy-prediction-contest/submit
+Leaderboard: https://www.kaggle.com/c/ams-2014-solar-energy-prediction-contest/leaderboard#score
+Jesús: https://campus.ie.edu/webapps/discussionboard/do/message?action=list_messages&course_id=_114320331_1&nav=discussion_board_entry&conf_id=_251223_1&forum_id=_112829_1&message_id=_4658342_1
+
+```{r}
+system.time({
+  predict_ <- data_solar_col_produ %>% 
+    setNames(nm = .) %>% 
+    map_dfc(function(WeatherStation) predict(object = model_applied[[WeatherStation]]$model, newdata = data_solar_add_predict))
+})
+
+out <- tibble(Date = data_solar_add_predict$Date, predict_)
+write.table(x = out, file = file.path('storage', 'out.csv'), sep = ',', dec = '.', row.names = FALSE, quote = FALSE)
+```
+
