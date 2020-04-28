@@ -131,11 +131,7 @@ solar_data_outlier_skim <- skim(data_solar_produ_scores)
 # summary(unlist(data_solar_produ_scores))
 solar_data_outlier_hist <- hist(unlist(data_solar_produ_scores))
 
-solar_data_outlier_table <- 
-  
-table(
-  abs(unlist(data_solar_produ_scores))>=3
-)
+solar_data_outlier_table <- table(abs(unlist(data_solar_produ_scores))>=3)
 
 ################################ [3] Solar Production Dataset Overview ##############################
 ########################################## [3.1] Training set #######################################
@@ -705,8 +701,6 @@ add_outlier_hist <- hist(unlist(data_add_scores))
 add_outlier_table <- table(
   abs(unlist(data_add_scores))>=3
 )
-
-
 
 ############################### [11.5] PCA FOR ADDITIONAL DATASET ############################
 
