@@ -122,7 +122,8 @@ solar_data_outlier_skim <- skim(data_solar_produ_scores)
 # summary(unlist(data_solar_produ_scores))
 solar_data_outlier_hist <- hist(unlist(data_solar_produ_scores))
 
-solar_data_outlier_table
+solar_data_outlier_table <- 
+  
 table(
   abs(unlist(data_solar_produ_scores))>=3
 )
@@ -234,7 +235,7 @@ p_bottom <- data_solar_train %>%
   theme(legend.position = "none") +
   labs(x = 'Weather Station', y = 'Production in million', title = 'Bottom')
 
- multiplot(p_top, p_bottom)
+ principal_station_plot <- multiplot(p_top, p_bottom)
 
 ################################ [5.2] RANK (IN TERMS OF PRODUCTION) CHANGE OVER TIME  ################################
 
@@ -287,7 +288,7 @@ p_Day_Of_Week <- data_solar_train %>%
   labs(x = 'Day of the week', y = '')
 
 layout <- matrix(c(1,1,1,2,3,4),2,3, byrow=TRUE)
-multiplot(p_all, p_year, p_month, p_Day_Of_Week, layout=layout)
+total_production_p <- multiplot(p_all, p_year, p_month, p_Day_Of_Week, layout=layout)
 
 
 ################################# [5.4] DEVELOPMENT OF PRODUCTION VOLUME OVER TIME FOR THE 5 HIGHEST PRODUCING WEATHER STATIONS  #####################################
@@ -310,7 +311,7 @@ p_month <- data_solar_train %>%
   geom_boxplot() +
   labs(x = 'Month', y = 'Production in million')
 
-multiplot(p_all, p_month)
+p_top_five_ts <- multiplot(p_all, p_month)
 
 #################################### [5.5]Training vs Test  ###################################
 p_train_test <- data_solar %>% 
@@ -323,8 +324,6 @@ p_train_test <- data_solar %>%
   scale_x_reverse() +
   labs(x = 'Year', y = 'Number of days')
 
-p_train_test
-
 ####################################### [6] SEASONALITY ########################################
 ########################### [6.1] JPBM: SEASONALITY - HOW DOES THE PRODUCTION OF ALL WEATHER STATIONS CHANGE OVER TIME AND HOW MUCH OF THE PRODUCTION IS EXPLAINED / TREND / RANDOM  #####################################
 
@@ -335,7 +334,8 @@ data <- data_solar_train %>%
 
 # range(data$Date2)
 data2 <- ts(data = data$ValueMean/1e6, frequency = 365, start = c(1994, 1, 01), end = c(2007, 12, 31))
-plot(decompose(data2))
+
+p_seasonality_all <- plot(decompose(data2))
 
 # ################################ [6.2] TREND VISUALIZATION FOR THE TOP 5 WEATHEER STATIONS  #####################################
 
@@ -354,7 +354,7 @@ data <- data_solar_train %>%
   setNames(data_solar_col_produ)
 
 # bb <- lapply(principal_weather_station[1:top_], function(x) plot(data[[x]]))
-lapply(principal_weather_station[1:top_], function(x) plot(data[[x]]$trend, main = x, ylab = 'Value'))
+p_seasonality_top_5 <- lapply(principal_weather_station[1:top_], function(x) plot(data[[x]]$trend, main = x, ylab = 'Value'))
 
 ######################################## [7] GEOGRAPHY ######################################
 ###################################### [7.1] POSITIONS #####################################
@@ -371,13 +371,12 @@ data <- data_solar_train %>%
 ## i See <https://tidyselect.r-lib.org/reference/faq-external-vector.html>.
 ## This message is displayed once per session.
 
-m1 <- leaflet(data = data) %>%
+map_stations <- leaflet(data = data) %>%
   addTiles() %>%
   addMarkers(lng=~elon, lat=~nlat,
              popup = ~paste(round(ValueMean/1e6, 0), "Million"), label = ~WeatherStation,
              clusterOptions = markerClusterOptions())
 
-m1
 
 ##################################### [7.2] HEATMAP #####################################
 
@@ -393,7 +392,7 @@ m1 <- leaflet(data = data) %>%
   addCircleMarkers(lng=~elon, lat=~nlat, group = 'data_solar') %>% 
   addHeatmap(lng = ~elon, lat = ~nlat, intensity = ~ValueMean, blur = 90, max = 0.05, radius = 60)
 
-m1
+map_production
 
 ##################################### [7.3] SEASONAL DECOMPOSITION #####################################
 
@@ -432,7 +431,7 @@ top_pc <- 10
 data <- data_solar_train %>%
   dplyr::select(principal_weather_station[1:top_], data_solar_col_predi[1:top_pc])
 
-chart.Correlation(data, histogram=TRUE) #, pch=19
+p_corr <- chart.Correlation(data, histogram=TRUE) #, pch=19
 
 ################################# [9] HISTOGRAM, DENSITY KERNEL AND BOXPLOT ########################
 ##################################[9.1] FOR GENERAL PRODUCTION #####################################
@@ -460,7 +459,7 @@ p_boxplot <- ggplot(data = data, aes(x = Value/1e6)) +
   labs(x = 'Production in million', y = '')
 
 layout <- matrix(c(1,1,1,2),4,1, byrow=TRUE)
-multiplot(p_histogram_density, p_boxplot, layout = layout)
+p_distri_prod <- multiplot(p_histogram_density, p_boxplot, layout = layout)
 
 # ################################ [9.2] FOR EACH WEATHER STATION AND PREDICTORS #####################################
 
@@ -497,12 +496,12 @@ data <- data_solar_train %>%
   filter(PC %in% data_solar_col_predi[1:50]) %>%
   mutate(PC_f = factor(PC, levels=data_solar_col_predi))
 
-ggplot(data = data, aes(x = Value)) +
+predictor_density <- ggplot(data = data, aes(x = Value)) +
   geom_histogram(aes(y=..density..), colour="black", fill="white") +
   geom_density(alpha=.2, fill="blue") +
   facet_wrap(vars(PC_f))
 
-ggplot(data = data, aes(x = Value)) +
+predictor_boxplot <- ggplot(data = data, aes(x = Value)) +
   geom_boxplot() +
   stat_boxplot(coef = 1.5, outlier.colour = 'red', outlier.alpha = 0.1) +
   facet_wrap(vars(PC_f)) +
@@ -512,10 +511,10 @@ ggplot(data = data, aes(x = Value)) +
 
 ##################################### [10]VARIABLE IMPORTANCE #####################################
 
-top_ <- 98
-
-cl<-makeCluster(detectCores())
-registerDoParallel(cl)
+# top_ <- 98
+# 
+# cl<-makeCluster(detectCores())
+# registerDoParallel(cl)
 
 select_important<-function(dat, n_vars, y){
   varimp <- filterVarImp(x = dat, y=y, nonpara=TRUE)
@@ -523,7 +522,7 @@ select_important<-function(dat, n_vars, y){
   varimp <- varimp[order(-imp)]
   selected <- varimp$variable[1:n_vars]
   return(selected)
-}
+}wa
 
 # time_importance <- system.time({
 # data_solar_importance <- foreach (x = principal_weather_station[1:top_],
@@ -534,7 +533,7 @@ select_important<-function(dat, n_vars, y){
 #                                                      y = data_solar_train[[x]])
 #                                   }
 # })
-print(time_importance) #1459.36
+#print(time_importance) #1459.36
 #stopCluster(cl)
 
 # saveRDS(data_solar_importance, file.path('storage', 'data_solar_importance_parallel.rds'))
@@ -543,7 +542,7 @@ data_solar_importance <- readRDS(file.path('storage', 'data_solar_importance_par
 names(data_solar_importance) <- principal_weather_station[1:top_]
 
 
-################################# [10] ADDITIONAL DATASET FEATURE VISUALIZATION ########################
+################################# [11] ADDITIONAL DATASET FEATURE VISUALIZATION ########################
 data <- data_add %>% 
   pivot_longer(cols = all_of(data_add_col), names_to = 'Variables', values_to = 'Value')
 
@@ -561,9 +560,9 @@ p_boxplot <- ggplot(data = data, aes(x = Value/1e6)) +
   labs(x = 'Production in million', y = '')
 
 layout <- matrix(c(1,1,1,2),4,1, byrow=TRUE)
-multiplot(p_histogram_density, p_boxplot, layout = layout)
+#p_additional <- multiplot(p_histogram_density, p_boxplot, layout = layout)
 
-# ################################ [10.1] DISTRIBUTION OF ADDITIONAL DATASET VALUES #####################################
+# ################################ [11.1] DISTRIBUTION OF ADDITIONAL DATASET VALUES #####################################
 
 data <- data_add %>%
   pivot_longer(cols = all_of(data_add_col), names_to = 'Variables', values_to = 'Value')
@@ -635,9 +634,9 @@ p_mean_sd <- stats_ %>%
   labs(x = 'Mean', y = 'Standard Deviation')
 
 layout <- matrix(c(1,2,3,4,5,5),3,2, byrow=TRUE)
-multiplot(p_mean, p_median, p_sd, p_na, p_mean_sd, layout = layout)
+p_additional <- multiplot(p_mean, p_median, p_sd, p_na, p_mean_sd, layout = layout)
 
-# ##################################### [10.2] CORRELATION BETWEEN ADDITIONAL INFORMATION #####################################
+# ##################################### [11.2] CORRELATION BETWEEN ADDITIONAL INFORMATION #####################################
 
 data <- data_add[, ..data_add_col]
 
@@ -671,7 +670,7 @@ ggplot(dat, aes(x = cor)) +
 p_corrplot <- corrplot(cor_, type="upper", order="hclust", p.mat = p.mat, sig.level = 0.01, insig = "blank")
 
 
-################################# [10.3] USE 'MICE' TO COMLETE 'ADDITIONAL DATA' VALUES #####################################
+################################# [11.3] USE 'MICE' TO COMLETE 'ADDITIONAL DATA' VALUES #####################################
 
 data <- data_add[, ..data_add_col]
 
@@ -684,9 +683,10 @@ df2 <- readRDS(file.path('storage', 'data_add_mice.rds'))
 # Average of all the Multivariate Imputation
 df3 <- 0
 for (i in 1:m_) df3 <- df3 + complete(df2, i)
-df3 <- df3/m_
 
-################################ [10.4] OUTLIERS IN ADDITIONAL DATASET ####################
+complete_mice <- df3/m_
+
+################################ [11.4] OUTLIERS IN ADDITIONAL DATASET ####################
 
 f_scores <- function(x) {
   data <- data_add[[x]]
@@ -698,15 +698,17 @@ f_scores <- function(x) {
 data_add_scores <- lapply(data_add_col, f_scores)
 names(data_add_scores) <- data_add_col
 
-skim(data_add_scores)
-hist(unlist(data_add_scores))
-table(
+add_outlier <- skim(data_add_scores)
+
+add_outlier_hist <- hist(unlist(data_add_scores))
+
+add_outlier_table <- table(
   abs(unlist(data_add_scores))>=3
 )
 
 
 
-############################### [10.5] PCA FOR ADDITIONAL DATASET ############################
+############################### [11.5] PCA FOR ADDITIONAL DATASET ############################
 
 pca_threshold <- 0.90
 model_ <- preProcess(df3, method = c("pca"), thresh = pca_threshold)
@@ -715,18 +717,18 @@ df4 <- predict(model_, df3)
 data_add_col_pca <- colnames(df4)
 data_add_pca <- bind_cols(data_add[, ..data_add_col_dates], df4)
 
-############################## [10.5.1] HISTOGRAM DENSITY KERNEL AND BOXPLOT #######################
+############################## [11.5.1] HISTOGRAM DENSITY KERNEL AND BOXPLOT #######################
 
 data <- data_add_pca %>%
   pivot_longer(cols = all_of(data_add_col_pca), names_to = 'PC', values_to = 'Value') %>%
   mutate(PC_ = factor(PC, levels = data_add_col_pca))
 
-p_histogram_density <- ggplot(data = data, aes(x = Value)) +
+pca_histogram_density <- ggplot(data = data, aes(x = Value)) +
   geom_histogram(aes(y=..density..), colour="black", fill="white") +
   geom_density(alpha=.2, fill="blue") +
   facet_wrap(vars(PC_))
 
-p_boxplot <- ggplot(data = data, aes(x = Value)) +
+pca_boxplot <- ggplot(data = data, aes(x = Value)) +
   geom_boxplot() +
   stat_boxplot(coef = 1.5, outlier.colour = 'red', outlier.alpha = 0.1) +
   facet_wrap(vars(PC_)) +
@@ -734,5 +736,3 @@ p_boxplot <- ggplot(data = data, aes(x = Value)) +
         axis.text.y=element_blank(),
         axis.ticks.y=element_blank())
 
-p_histogram_density
-p_boxplot
