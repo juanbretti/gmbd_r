@@ -367,12 +367,9 @@ data <- data_solar_train %>%
   group_map(~ ts_(.x$Value)) %>%
   setNames(data_solar_col_produ)
 
-<<<<<<< HEAD
 # bb <- lapply(principal_weather_station[1:top_], function(x) plot(data[[x]]))
 p_seasonality_top_5 <- lapply(principal_weather_station[1:top_], function(x) plot(data[[x]]$trend, main = x, ylab = 'Value'))
-=======
-lapply(principal_weather_station[1:top_], function(x) plot(data[[x]]$trend, main = x, ylab = 'Value'))
->>>>>>> fedded307fc0c3bb3def3c3ccdebb9dda39c318e
+
 
 ######################################## [7] GEOGRAPHY ######################################
 ###################################### [7.1] POSITIONS #####################################
@@ -384,20 +381,18 @@ data <- data_solar_train %>%
   summarise(ValueMean = mean(Value)) %>%
   left_join(data_station, by = c('WeatherStation' = 'stid'))
 
-<<<<<<< HEAD
 ## Note: Using an external vector in selections is ambiguous.
 ## i Use `all_of(data_solar_col_predi)` instead of `data_solar_col_predi` to silence this message.
 ## i See <https://tidyselect.r-lib.org/reference/faq-external-vector.html>.
 ## This message is displayed once per session.
 
+
 map_stations <- leaflet(data = data) %>%
-=======
-m1 <- leaflet(data = data) %>%
->>>>>>> fedded307fc0c3bb3def3c3ccdebb9dda39c318e
   addTiles() %>%
   addMarkers(lng=~elon, lat=~nlat,
              popup = ~paste(round(ValueMean/1e6, 0), "Million"), label = ~WeatherStation,
              clusterOptions = markerClusterOptions())
+
 
 
 ##################################### [7.2] HEATMAP #####################################
@@ -409,7 +404,7 @@ data <- data_solar_train %>%
   summarise(ValueMean = mean(Value)) %>% 
   left_join(data_station, by = c('WeatherStation' = 'stid'))
 
-m1 <- leaflet(data = data) %>%
+map_production <- leaflet(data = data) %>%
   addTiles() %>%
   addCircleMarkers(lng=~elon, lat=~nlat, group = 'data_solar') %>% 
   addHeatmap(lng = ~elon, lat = ~nlat, intensity = ~ValueMean, blur = 90, max = 0.05, radius = 60)
