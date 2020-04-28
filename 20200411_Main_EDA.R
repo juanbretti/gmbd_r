@@ -521,25 +521,25 @@ predictor_boxplot <- ggplot(data = data, aes(x = Value)) +
 
 ##################################### [10]VARIABLE IMPORTANCE #####################################
 
-<<<<<<< HEAD
+
 # top_ <- 98
 # 
 # cl<-makeCluster(detectCores())
 # registerDoParallel(cl)
-=======
-top_ <- 98 #Selecting all the Weather Stations
 
-cl<-makeCluster(detectCores())
-registerDoParallel(cl)
->>>>>>> fedded307fc0c3bb3def3c3ccdebb9dda39c318e
-
-select_important<-function(dat, n_vars, y){
-  varimp <- filterVarImp(x = dat, y=y, nonpara=TRUE)
-  varimp <- data.table(variable=rownames(varimp),imp=varimp[, 1])
-  varimp <- varimp[order(-imp)]
-  selected <- varimp$variable[1:n_vars]
-  return(selected)
-}wa
+# top_ <- 98 #Selecting all the Weather Stations
+# 
+# cl<-makeCluster(detectCores())
+# registerDoParallel(cl)
+# 
+# 
+# select_important<-function(dat, n_vars, y){
+#   varimp <- filterVarImp(x = dat, y=y, nonpara=TRUE)
+#   varimp <- data.table(variable=rownames(varimp),imp=varimp[, 1])
+#   varimp <- varimp[order(-imp)]
+#   selected <- varimp$variable[1:n_vars]
+#   return(selected)
+# }
 
 # time_importance <- system.time({
 # data_solar_importance <- foreach (x = principal_weather_station[1:top_],
@@ -559,12 +559,11 @@ data_solar_importance <- readRDS(file.path('storage', 'data_solar_importance_par
 names(data_solar_importance) <- principal_weather_station[1:top_]
 
 
-<<<<<<< HEAD
+
 ################################# [11] ADDITIONAL DATASET FEATURE VISUALIZATION ########################
-=======
+
 ################################# [10] ADDITIONAL DATASET FEATURE VISUALIZATION ########################
 
->>>>>>> fedded307fc0c3bb3def3c3ccdebb9dda39c318e
 data <- data_add %>% 
   pivot_longer(cols = all_of(data_add_col), names_to = 'Variables', values_to = 'Value')
 
@@ -584,11 +583,11 @@ p_boxplot <- ggplot(data = data, aes(x = Value/1e6)) +
 layout <- matrix(c(1,1,1,2),4,1, byrow=TRUE)
 #p_additional <- multiplot(p_histogram_density, p_boxplot, layout = layout)
 
-<<<<<<< HEAD
+
 # ################################ [11.1] DISTRIBUTION OF ADDITIONAL DATASET VALUES #####################################
-=======
+
 ################################# [10.1] DISTRIBUTION OF ADDITIONAL DATASET VALUES #####################################
->>>>>>> fedded307fc0c3bb3def3c3ccdebb9dda39c318e
+
 
 data <- data_add %>%
   pivot_longer(cols = all_of(data_add_col), names_to = 'Variables', values_to = 'Value')
@@ -662,11 +661,9 @@ p_mean_sd <- stats_ %>%
 layout <- matrix(c(1,2,3,4,5,5),3,2, byrow=TRUE)
 p_additional <- multiplot(p_mean, p_median, p_sd, p_na, p_mean_sd, layout = layout)
 
-<<<<<<< HEAD
 # ##################################### [11.2] CORRELATION BETWEEN ADDITIONAL INFORMATION #####################################
-=======
+
 ##################################### [10.2] CORRELATION BETWEEN ADDITIONAL INFORMATION #####################################
->>>>>>> fedded307fc0c3bb3def3c3ccdebb9dda39c318e
 
 data <- data_add[, ..data_add_col]
 
@@ -736,13 +733,12 @@ add_outlier_table <- table(
   abs(unlist(data_add_scores))>=3
 )
 
-<<<<<<< HEAD
 
 
 ############################### [11.5] PCA FOR ADDITIONAL DATASET ############################
-=======
+
 ############################## [10.5] PCA FOR ADDITIONAL DATASET ############################
->>>>>>> fedded307fc0c3bb3def3c3ccdebb9dda39c318e
+
 
 pca_threshold <- 0.90
 model_ <- preProcess(df3, method = c("pca"), thresh = pca_threshold)
