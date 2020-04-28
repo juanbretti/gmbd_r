@@ -5,7 +5,7 @@
 library(tidyverse)
 library(lubridate)
 library(data.table)
-# library(dplyr)
+ library(dplyr)
 # library(purrr)
 
 # Descriptive
@@ -15,7 +15,7 @@ library(DataExplorer)
 library(forecast)
 library(PerformanceAnalytics)
 library(corrplot)
-
+library(outliers)
 # Mapping
 library(leaflet)
 library(leaflet.extras)
@@ -43,10 +43,10 @@ data_solar <- data_solar[j = Date2 := as.Date(x = Date, format = "%Y%m%d")]
 # Add date conversions
 data_solar <- data_solar %>% 
   mutate(Year = year(Date2),
-         Month = month(Date2, label = TRUE),
+         Month = lubridate::month(data_solar$Date2, label = TRUE),
          Day = day(Date2),
          Day_Of_Year = yday(Date2),
-         Day_Of_Week = wday(Date2, label = TRUE, week_start = 1)) %>% 
+         Day_Of_Week = lubridate::wday(Date2, label = TRUE, week_start = 1)) %>% 
   as.data.table(.)
 
 # Columns defined from the enunciate
@@ -60,10 +60,10 @@ data_add <- data_add[j = Date2 := as.Date(x = Date, format = "%Y%m%d")]
 # Add date conversions
 data_add <- data_add %>% 
   mutate(Year = year(Date2),
-         Month = month(Date2, label = TRUE),
+         Month = lubridate::month(Date2, label = TRUE),
          Day = day(Date2),
          Day_Of_Year = yday(Date2),
-         Day_Of_Week = wday(Date2, label = TRUE, week_start = 1)) %>% 
+         Day_Of_Week = lubridate::wday(Date2, label = TRUE, week_start = 1)) %>% 
   as.data.table(.)
 
 # Columns defined from the enunciate
@@ -155,7 +155,7 @@ glimpse_station <- glimpse(data_station)
 ################################# [4] Additional information Dataset Overview #############################
 
 skim_additional <- skim(data_add)
-flimpse_additional <- glimpse(data_add)
+glimpse_additional <- glimpse(data_add)
 
 ################################ [5]Descriptive Plots   ##############################################
 
@@ -636,8 +636,6 @@ p_additional <- multiplot(p_mean, p_median, p_sd, p_na, p_mean_sd, layout = layo
 
 # ##################################### [11.2] CORRELATION BETWEEN ADDITIONAL INFORMATION #####################################
 
-##################################### [10.2] CORRELATION BETWEEN ADDITIONAL INFORMATION #####################################
-
 data <- data_add[, ..data_add_col]
 
 # https://stackoverflow.com/questions/17079637/correlation-matrix-in-r-returning-na-values
@@ -684,28 +682,27 @@ df2 <- readRDS(file.path('storage', 'data_add_mice.rds'))
 df3 <- 0
 for (i in 1:m_) df3 <- df3 + complete(df2, i)
 
-complete_mice <- df3/m_
+complete_add <- df3/m_
 
 ################################ [11.4] OUTLIERS IN ADDITIONAL DATASET ####################
 
-f_scores <- function(x) {
-  data <- data_add[[x]]
-  data <- data[!is.na(data)]
-  res <- outliers::scores(data, type = 'z')
-  return(res)
-}
-
-data_add_scores <- lapply(data_add_col, f_scores)
-names(data_add_scores) <- data_add_col
-
-add_outlier <- skim(data_add_scores)
-
-add_outlier_hist <- hist(unlist(data_add_scores))
-
-add_outlier_table <- table(
-  abs(unlist(data_add_scores))>=3
-)
-
+# f_scores <- function(x) {
+#   data <- complete_add[[x]]
+#   data <- data[!is.na(data)]
+#   res <- outliers::scores(data, type = 'z')
+#   return(res)
+# }
+# 
+# data_add_scores <- lapply(complete_add_col, f_scores)
+# names(data_add_scores) <- complete_add_col
+# 
+# add_outlier <- skim(data_add_scores)
+# 
+# add_outlier_hist <- hist(unlist(data_add_scores))
+# 
+# add_outlier_table <- table(
+#   abs(unlist(data_add_scores))>=3
+# )
 
 
 ############################### [11.5] PCA FOR ADDITIONAL DATASET ############################
