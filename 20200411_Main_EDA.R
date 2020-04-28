@@ -20,7 +20,7 @@ library(corrplot)
 library(leaflet)
 library(leaflet.extras)
 library(sf)
-library(gdtools)
+# library(gdtools)
 library(ggmap)
 
 # Calculations
@@ -140,22 +140,22 @@ table(
 ################################ [3] Solar Production Dataset Overview ##############################
 ########################################## [3.1] Training set #######################################
 
-skim(data_solar_train)
-glimpse(data_solar_train)
+skim_train <- skim(data_solar_train)
+glimpse_train <- glimpse(data_solar_train)
 
 ###########################################3 [3.2] Test set ########################################
-skim(data_solar_test)
-glimpse(data_solar_test)
+skim_test <- skim(data_solar_test)
+glimpse_test <- glimpse(data_solar_test)
 
 ################################# [4] Solar Station Dataset Overview ###############################
 
-skim(data_station)
-glimpse(data_station)
+skim_station <- skim(data_station)
+glimpse_station <- glimpse(data_station)
 
 ################################# [4] Additional information Dataset Overview #############################
 
-skim(data_add)
-glimpse(data_add)
+skim_additional <- skim(data_add)
+flimpse_additional <- glimpse(data_add)
 
 ################################ [5]Descriptive Plots   ##############################################
 
@@ -409,35 +409,34 @@ map_production <- leaflet(data = data) %>%
   addCircleMarkers(lng=~elon, lat=~nlat, group = 'data_solar') %>% 
   addHeatmap(lng = ~elon, lat = ~nlat, intensity = ~ValueMean, blur = 90, max = 0.05, radius = 60)
 
-map_production
 
 ##################################### [7.3] SEASONAL DECOMPOSITION #####################################
 
-top_ <- 5
+# top_ <- 5
+# 
+# data <- data_solar_train %>%
+#   dplyr::select(-data_solar_col_predi) %>%
+#   pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>%
+#   filter(WeatherStation %in% principal_weather_station[1:top_]) %>%
+#   group_by(WeatherStation) %>%
+#   summarise(ValueMean = mean(Value)) %>%
+#   left_join(data_station, by = c('WeatherStation' = 'stid'))
+# 
+# data1 <- data_solar_train %>%
+#   dplyr::select(-data_solar_col_predi) %>%
+#   pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>%
+#   filter(WeatherStation %in% principal_weather_station[1:top_]) %>%
+#   group_by(WeatherStation) %>%
+#   do(
+#     plots = forecast::autoplot(decompose(ts(data = .$Value, frequency = 365, start = c(1994, 1, 01), end = c(2007, 12, 31))))
+#   )
+# 
+# m1 <- leaflet() %>%
+#   addTiles() %>%
+#   addCircleMarkers(data = data, lng=~elon, lat=~nlat, group = 'data_solar') %>%
+#   leafpop::addPopupGraphs(data1$plots, group = 'data_solar', width = 300, height = 400)
+# 
 
-data <- data_solar_train %>%
-  dplyr::select(-data_solar_col_predi) %>%
-  pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>%
-  filter(WeatherStation %in% principal_weather_station[1:top_]) %>%
-  group_by(WeatherStation) %>%
-  summarise(ValueMean = mean(Value)) %>%
-  left_join(data_station, by = c('WeatherStation' = 'stid'))
-
-data1 <- data_solar_train %>%
-  dplyr::select(-data_solar_col_predi) %>%
-  pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>%
-  filter(WeatherStation %in% principal_weather_station[1:top_]) %>%
-  group_by(WeatherStation) %>%
-  do(
-    plots = forecast::autoplot(decompose(ts(data = .$Value, frequency = 365, start = c(1994, 1, 01), end = c(2007, 12, 31))))
-  )
-
-m1 <- leaflet() %>%
-  addTiles() %>%
-  addCircleMarkers(data = data, lng=~elon, lat=~nlat, group = 'data_solar') %>%
-  leafpop::addPopupGraphs(data1$plots, group = 'data_solar', width = 300, height = 400)
-
-m1
 
 ################################ [8] COMPUTE CORRELATIONS BETWEEN TOP 5 WEATHER STATIONS (IN TERMS OF PRODUCTION) & TOP 10 PREDICTORS #####################################
 
@@ -494,9 +493,9 @@ p_boxplot <- ggplot(data = data, aes(x = Value/1e6)) +
         axis.text.y=element_blank(),
         axis.ticks.y=element_blank())
 
-p_histogram_density
-
-p_boxplot
+# p_histogram_density
+# 
+# p_boxplot
 
 #PREDICTORS
 
@@ -561,33 +560,7 @@ names(data_solar_importance) <- principal_weather_station[1:top_]
 
 
 ################################# [11] ADDITIONAL DATASET FEATURE VISUALIZATION ########################
-
-################################# [10] ADDITIONAL DATASET FEATURE VISUALIZATION ########################
-
-data <- data_add %>% 
-  pivot_longer(cols = all_of(data_add_col), names_to = 'Variables', values_to = 'Value')
-
-p_histogram_density <- ggplot(data = data, aes(x = Value/1e6)) +
-  geom_histogram(aes(y=..density..), colour="black", fill="white") +
-  geom_density(alpha=.2, fill="blue") +
-  labs(x = '', y = 'Density')
-
-p_boxplot <- ggplot(data = data, aes(x = Value/1e6)) +
-  geom_boxplot() +
-  stat_boxplot(coef = 1.5, outlier.colour = 'red', outlier.alpha = 0.1) +
-  theme(axis.title.y=element_blank(),
-        axis.text.y=element_blank(),
-        axis.ticks.y=element_blank()) +
-  labs(x = 'Production in million', y = '')
-
-layout <- matrix(c(1,1,1,2),4,1, byrow=TRUE)
-#p_additional <- multiplot(p_histogram_density, p_boxplot, layout = layout)
-
-
 # ################################ [11.1] DISTRIBUTION OF ADDITIONAL DATASET VALUES #####################################
-
-################################# [10.1] DISTRIBUTION OF ADDITIONAL DATASET VALUES #####################################
-
 
 data <- data_add %>%
   pivot_longer(cols = all_of(data_add_col), names_to = 'Variables', values_to = 'Value')
