@@ -5,6 +5,7 @@
 library(tidyverse)
 library(lubridate)
 library(data.table)
+library(outliers)
 # library(dplyr)
 # library(purrr)
 
@@ -43,10 +44,10 @@ data_solar <- data_solar[j = Date2 := as.Date(x = Date, format = "%Y%m%d")]
 # Add date conversions
 data_solar <- data_solar %>% 
   mutate(Year = year(Date2),
-         Month = month(Date2, label = TRUE),
+         Month = month(Date2),
          Day = day(Date2),
          Day_Of_Year = yday(Date2),
-         Day_Of_Week = wday(Date2, label = TRUE, week_start = 1)) %>% 
+         Day_Of_Week = wday(Date2)) %>% 
   as.data.table(.)
 
 # Columns defined from the enunciate
@@ -60,10 +61,10 @@ data_add <- data_add[j = Date2 := as.Date(x = Date, format = "%Y%m%d")]
 # Add date conversions
 data_add <- data_add %>% 
   mutate(Year = year(Date2),
-         Month = month(Date2, label = TRUE),
+         Month = month(Date2),#Error in month(Date2, label = TRUE) : unused argument (label = TRUE)
          Day = day(Date2),
          Day_Of_Year = yday(Date2),
-         Day_Of_Week = wday(Date2, label = TRUE, week_start = 1)) %>% 
+         Day_Of_Week = wday(Date2)) %>% #Error in wday(Date2, label = TRUE, week_start = 1) : unused arguments (label = TRUE, week_start = 1)
   as.data.table(.)
 
 # Columns defined from the enunciate
