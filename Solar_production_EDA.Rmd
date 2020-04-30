@@ -6,7 +6,7 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE, eval=TRUE}
-knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+knitr::opts_chunk$set(message = FALSE)
 ```
 
 This report contains the findings on Solar data, additional data and stations data. 
@@ -46,7 +46,7 @@ library(doParallel)
 ```
 
 ###### 2 Source From R script
-```{r, eval=TRUE, results='hide'}
+```{r, eval=TRUE, results='hide', include=FALSE}
 
 source('20200411_Main_EDA.R', echo = FALSE, print.eval = FALSE)
 
