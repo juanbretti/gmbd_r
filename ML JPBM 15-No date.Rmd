@@ -28,7 +28,7 @@ library(ggplot2)
 # Machine learning
 library(e1071)
 library(caret)
-library(cvTools)
+# library(cvTools)
 
 # Calculations
 library(forecast)
@@ -151,8 +151,7 @@ Using 'filterVarImp'
 # 
 # time_importance <- system.time({
 # data_col_importance <- foreach (x = data_solar_col_produ, .errorhandling="remove", .packages=(.packages())) %dopar% {
-#                                     select_important(dat=select(data_solar_add_train,
-#                                                                 !!c(data_solar_col_predi, 'Day_Of_Year', 'Day_Of_Week', 'Days_Since_Origin', data_add_col)),
+#                                     select_important(dat=select(data_solar_add_train, !!c(data_solar_col_predi, data_add_col)),
 #                                                      y = data_solar_add_train[[x]])
 #                                     }
 # })
@@ -161,8 +160,8 @@ Using 'filterVarImp'
 # print(time_importance)
 # stopCluster(cl)
 
-# saveRDS(data_col_importance, file.path('storage', 'data_col_importance.rds'))
-data_col_importance <- readRDS(file.path('storage', 'data_col_importance.rds'))
+# saveRDS(data_col_importance, file.path('storage', 'data_col_importance1.rds'))
+data_col_importance <- readRDS(file.path('storage', 'data_col_importance1.rds'))
 
 rm(list=c('cl', 'select_important', 'time_importance'))
 ```
@@ -190,8 +189,11 @@ model_result <- function(model_train, data_train, data_val) {
   mae_train <- mean(abs(errors_train))
   mse_val <- mean(errors_val^2)
   mae_val <- mean(abs(errors_val))
+  # Personal metrics
+  mae_ratio = mae_val/mae_train
+  fitting = ifelse(mae_ratio<1, 'Underfitting', ifelse(mae_ratio==0, 'Fit', 'Overfitting'))
   # Combining the results
-  result_combined <- tibble(mse_train, mse_val, mae_train, mae_val)
+  result_combined <- tibble(mse_train, mse_val, mae_train, mae_val, mae_ratio, fitting)
   # Quick plot for 'Test'
   result_plot <- ggplot() +
     geom_point(aes(y=predictions_val, x=1:nrow(data_val)), color = 'red') +
@@ -202,6 +204,9 @@ model_result <- function(model_train, data_train, data_val) {
     plot = result_plot
   ))
 }
+
+# WeatherStation <- 'ACME'
+# col_importance_number <- 40
 
 model_train <- function(WeatherStation, col_importance_number = 40) {
   # Columns to use, depending on the 'col_importance_number'
@@ -214,15 +219,15 @@ model_train <- function(WeatherStation, col_importance_number = 40) {
 
   # Control
   timeControl <- trainControl(method = "timeslice",
-                              initialWindow = 365*2,
+                              initialWindow = 365*5,
                               horizon = 365*1,
                               fixedWindow = TRUE,
                               skip = 365*3,
                               allowParallel = TRUE)
   
   # Grid search
-  tuneControl <- expand.grid(C = 10^seq(from = -2, to = 1, by = 0.1/2),
-                            sigma = 10^seq(from = -3, to = -1, by = 0.1/2))
+  tuneControl <- expand.grid(C = 10^seq(from = -2, to = 1, by = 0.1),
+                            sigma = 10^seq(from = -3, to = -1, by = 0.1))
 
   # Model
   train_time <- system.time({
@@ -237,11 +242,11 @@ model_train <- function(WeatherStation, col_importance_number = 40) {
 
   })
 
-  # To check the status
-  print(paste(WeatherStation, Sys.time(), train_time[3], sep = ' || '))
-
   # Results
   model_result <- model_result(model, data_train, data_val)
+  
+  # To check the status
+  print(paste(WeatherStation, Sys.time(), train_time[3], model_result$combined$mae_ratio, sep = ' || '))
 
   return(list(
     WeatherStation = WeatherStation,
@@ -263,8 +268,8 @@ names(model_trained) <- data_solar_col_produ
 
 stopCluster(cl)
 
-saveRDS(model_trained, file.path('storage', 'model_trained3.rds'))
-# model_trained <- readRDS(file.path('storage', 'model_trained3.rds'))
+saveRDS(model_trained, file.path('storage', 'model_trained15.rds'))
+# model_trained <- readRDS(file.path('storage', 'model_trained5.rds'))
 
 rm(list=c('cl', 'model_train', 'model_result'))
 ```
@@ -272,13 +277,9 @@ rm(list=c('cl', 'model_train', 'model_result'))
 ## Results
 
 ```{r}
-result_combined <- data_solar_col_produ %>% 
+data_solar_col_produ %>% 
   map_dfr(function(x) bind_cols(WeatherStation = x, model_trained[[x]]$result$combined)) %>% 
-  mutate(mae_ratio = mae_val/mae_train,
-         fitting = ifelse(mae_ratio<1, 'Underfitting', ifelse(mae_ratio==0, 'Fit', 'Overfitting'))) %>% 
-  arrange(mae_ratio)
-
-ggplot(result_combined) + 
+  ggplot() + 
   geom_histogram(aes(mae_ratio, fill = fitting))
 ```
 
@@ -307,8 +308,11 @@ model_result <- function(model_train, model_train_val, data_train, data_val, dat
   mae_train_val <- mean(abs(errors_train_val))
   mse_test <- mean(errors_test^2)
   mae_test <- mean(abs(errors_test))
+  # Personal metrics
+  mae_ratio = mae_test/mae_train_val
+  fitting = ifelse(mae_ratio<1, 'Underfitting', ifelse(mae_ratio==0, 'Fit', 'Overfitting'))
   # Combining the results
-  result_combined <- tibble(mse_train, mse_val, mse_train_val, mse_test, mae_train, mae_val, mae_train_val, mae_test)
+  result_combined <- tibble(mse_train, mse_val, mse_train_val, mse_test, mae_train, mae_val, mae_train_val, mae_test, mae_ratio, fitting)
   # Quick plot for 'Test'
   result_plot <- ggplot() +
     geom_point(aes(y=predictions_test, x=data_test$Date2), color = 'red') +
@@ -346,7 +350,7 @@ model_apply <- function(WeatherStation, col_importance_number = 40) {
   
   # Control
   timeControl <- trainControl(method = "timeslice",
-                              initialWindow = 365*2,
+                              initialWindow = 365*5,
                               horizon = 365*1,
                               fixedWindow = TRUE,
                               skip = 365*3,
@@ -355,7 +359,7 @@ model_apply <- function(WeatherStation, col_importance_number = 40) {
   # Model
   train_time <- system.time({
     model <- caret::train(WeatherStation ~ .,
-                      data = data_train_val,
+                      data = data_train,
                       method = "svmRadialSigma",
                       metric = "RMSE",
                       tuneGrid = model_coef,
@@ -363,12 +367,12 @@ model_apply <- function(WeatherStation, col_importance_number = 40) {
                       preProcess = c('center', 'scale'))
   })
   
-  # To check the status
-  print(paste(WeatherStation, Sys.time(), train_time[3], sep = ' || '))
-
   # Results
   model_result <- model_result(trained_$model, model, data_train, data_val, data_train_val, data_test)
-  
+
+    # To check the status
+  print(paste(WeatherStation, Sys.time(), train_time[3], model_result$combined$mae_ratio, sep = ' || '))
+
   return(list(
     WeatherStation = WeatherStation,
     train_time = train_time,
@@ -388,8 +392,8 @@ names(model_applied) <- data_solar_col_produ
 
 stopCluster(cl)
 
-saveRDS(model_applied, file.path('storage', 'model_applied3.rds'))
-# model_applied <- readRDS(file.path('storage', 'model_applied2.rds'))
+saveRDS(model_applied, file.path('storage', 'model_applied15.rds'))
+# model_applied <- readRDS(file.path('storage', 'model_applied15.rds'))
 
 rm(list=c('cl', 'model_apply', 'model_result'))
 ```
@@ -397,13 +401,9 @@ rm(list=c('cl', 'model_apply', 'model_result'))
 ## Results
 
 ```{r}
-result_combined <- data_solar_col_produ %>% 
+data_solar_col_produ %>% 
   map_dfr(function(x) bind_cols(WeatherStation = x, model_applied[[x]]$result$combined)) %>% 
-  mutate(mae_ratio = mae_test/mae_train_val,
-         fitting = ifelse(mae_ratio<1, 'Underfitting', ifelse(mae_ratio==0, 'Fit', 'Overfitting'))) %>% 
-  arrange(mae_ratio)
-
-ggplot(result_combined) + 
+  ggplot() + 
   geom_histogram(aes(mae_ratio, fill = fitting))
 ```
 

@@ -203,6 +203,9 @@ model_result <- function(model_train, data_train, data_val) {
   ))
 }
 
+# WeatherStation <- 'ACME'
+# col_importance_number <- 40
+
 model_train <- function(WeatherStation, col_importance_number = 40) {
   # Columns to use, depending on the 'col_importance_number'
   col_importance <- data_col_importance[[WeatherStation]][1:col_importance_number]
@@ -214,24 +217,24 @@ model_train <- function(WeatherStation, col_importance_number = 40) {
 
   # Control
   timeControl <- trainControl(method = "timeslice",
-                              initialWindow = 365*2,
+                              initialWindow = 365*5,
                               horizon = 365*1,
                               fixedWindow = TRUE,
                               skip = 365*3,
                               allowParallel = TRUE)
   
-  # Grid search
-  tuneControl <- expand.grid(C = 10^seq(from = -2, to = 1, by = 0.1/2),
-                            sigma = 10^seq(from = -3, to = -1, by = 0.1/2))
+  # # Grid search
+  # tuneControl <- expand.grid(C = 10^seq(from = -2, to = 1, by = 0.1/2),
+  #                           sigma = 10^seq(from = -3, to = -1, by = 0.1/2))
 
   # Model
   train_time <- system.time({
     model <- caret::train(WeatherStation ~ .,
                       data = data_train,
-                      method = "svmRadialSigma",
+                      method = "pls",
                       metric = "RMSE",
-                      # tuneLength = 20,
-                      tuneGrid = tuneControl,
+                      tuneLength = 20,
+                      # tuneGrid = tuneControl,
                       trControl = timeControl,
                       preProcess = c('center', 'scale'))
 
@@ -263,7 +266,7 @@ names(model_trained) <- data_solar_col_produ
 
 stopCluster(cl)
 
-saveRDS(model_trained, file.path('storage', 'model_trained3.rds'))
+saveRDS(model_trained, file.path('storage', 'model_trained4.rds'))
 # model_trained <- readRDS(file.path('storage', 'model_trained3.rds'))
 
 rm(list=c('cl', 'model_train', 'model_result'))
@@ -327,9 +330,7 @@ model_apply <- function(WeatherStation, col_importance_number = 40) {
   
   # Final coefficients
   model_coef <- data.table(
-    # epsilon = trained_$model$finalModel@param$epsilon,
-    C = trained_$model$finalModel@param$C,
-    sigma = trained_$model$finalModel@kernelf@kpar$sigma
+    ncomp = trained_$model$finalModel$bestIter$ncomp
   )
   
   # Columns to use, depending on the 'col_importance_number'
@@ -346,7 +347,7 @@ model_apply <- function(WeatherStation, col_importance_number = 40) {
   
   # Control
   timeControl <- trainControl(method = "timeslice",
-                              initialWindow = 365*2,
+                              initialWindow = 365*5,
                               horizon = 365*1,
                               fixedWindow = TRUE,
                               skip = 365*3,
@@ -355,8 +356,8 @@ model_apply <- function(WeatherStation, col_importance_number = 40) {
   # Model
   train_time <- system.time({
     model <- caret::train(WeatherStation ~ .,
-                      data = data_train_val,
-                      method = "svmRadialSigma",
+                      data = data_train,
+                      method = "pls",
                       metric = "RMSE",
                       tuneGrid = model_coef,
                       trControl = timeControl,
@@ -378,17 +379,17 @@ model_apply <- function(WeatherStation, col_importance_number = 40) {
 }
 
 # Parallel apply
-cl<-makeCluster(detectCores())
-registerDoParallel(cl)
+# cl<-makeCluster(detectCores())
+# registerDoParallel(cl)
 
 system.time({
   model_applied <- lapply(data_solar_col_produ, model_apply)
 })
 names(model_applied) <- data_solar_col_produ
 
-stopCluster(cl)
+# stopCluster(cl)
 
-saveRDS(model_applied, file.path('storage', 'model_applied3.rds'))
+saveRDS(model_applied, file.path('storage', 'model_applied4.rds'))
 # model_applied <- readRDS(file.path('storage', 'model_applied2.rds'))
 
 rm(list=c('cl', 'model_apply', 'model_result'))
