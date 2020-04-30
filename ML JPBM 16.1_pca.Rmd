@@ -74,13 +74,6 @@ data_add_col <- colnames(data_add)[2:101]
 data_add_col_dates <- setdiff(colnames(data_add), data_add_col)
 ```
 
-> principal_weather_station
- [1] "KENT" "BOIS" "HOOK" "HOLL" "GOOD" "TIPT" "BEAV" "ARNE" "CAMA" "CHEY" "ERIC" "MANG" "WOOD" "BUTL" "BUFF" "BESS" "RETR" "SLAP" "HOBA" "FREE" "RING"
-[22] "ALTU" "WEAT" "MEDI" "WAUR" "CHER" "APAC" "WATO" "SEIL" "FTCB" "HINT" "PUTN" "ACME" "MAYR" "LAHO" "KETC" "ELRE" "SULP" "NINN" "BREC" "WASH" "MINC"
-[43] "BYAR" "CHIC" "GUTH" "FAIR" "SPEN" "MARE" "BURN" "MADI" "SHAW" "REDR" "DURA" "PERK" "PAUL" "MEDF" "ADAX" "NEWK" "PAWN" "HUGO" "BURB" "STIL" "WYNO"
-[64] "FORA" "HASK" "BLAC" "CENT" "BOWL" "BRIS" "OILT" "WILB" "CHAN" "NOWA" "BIXB" "OKEM" "LANE" "TISH" "SKIA" "STUA" "COPA" "IDAB" "TAHL" "MIAM" "VINI"
-[85] "SALL" "EUFA" "STIG" "MCAL" "JAYX" "COOK" "PRYO" "WIST" "CLOU" "OKMU" "TALI" "CLAY" "WEST" "MTHE"
-
 ## Complete data_add
 
 ```{r}
@@ -134,38 +127,6 @@ data_solar_add_test <- data_solar_add_train_[(nrow_train+nrow_val+1):nrow(data_s
 rm(list=c('nrow_train', 'nrow_val', 'nrow_test', 'data_solar_add_train_', 'data_solar_add', 'data_add_col_dates'))
 ```
 
-# Variable importance
-Using 'filterVarImp'
-
-```{r}
-# cl<-makeCluster(detectCores())
-# registerDoParallel(cl)
-# 
-# select_important<-function(dat, y, n_vars=ncol(dat)){
-#   varimp <- filterVarImp(x = dat, y=y, nonpara=TRUE)
-#   varimp <- data.table(variable=rownames(varimp),imp=varimp[, 1])
-#   varimp <- varimp[order(-imp)]
-#   selected <- varimp$variable[1:n_vars]
-#   return(selected)
-# }
-# 
-# time_importance <- system.time({
-# data_col_importance <- foreach (x = data_solar_col_produ, .errorhandling="remove", .packages=(.packages())) %dopar% {
-#                                     select_important(dat=select(data_solar_add_train, !!c(data_solar_col_predi, data_add_col)),
-#                                                      y = data_solar_add_train[[x]])
-#                                     }
-# })
-# names(data_col_importance) <- data_solar_col_produ
-# 
-# print(time_importance)
-# stopCluster(cl)
-
-# saveRDS(data_col_importance, file.path('storage', 'data_col_importance1.rds'))
-data_col_importance <- readRDS(file.path('storage', 'data_col_importance1.rds'))
-
-rm(list=c('cl', 'select_important', 'time_importance'))
-```
-
 # Hyperparameter optimization
 Using caret library, for all the 'WeatherStations'
 https://topepo.github.io/caret/available-models.html
@@ -206,16 +167,11 @@ model_result <- function(model_train, data_train, data_val) {
 }
 
 # WeatherStation <- 'ACME'
-# col_importance_number <- 40
 
-model_train <- function(WeatherStation, col_importance_number = 40) {
-  # Columns to use, depending on the 'col_importance_number'
-  col_importance <- data_col_importance[[WeatherStation]][1:col_importance_number]
+model_train <- function(WeatherStation) {
   # Subset selection
-  data_train <- bind_cols(WeatherStation = data_solar_add_train[[WeatherStation]],
-                    select(data_solar_add_train, !!col_importance))
-  data_val <- bind_cols(WeatherStation = data_solar_add_val[[WeatherStation]],
-                    select(data_solar_add_val, !!col_importance))
+  data_train <- bind_cols(WeatherStation = data_solar_add_train[[WeatherStation]], data_solar_add_train)
+  data_val <- bind_cols(WeatherStation = data_solar_add_val[[WeatherStation]], data_solar_add_val)
 
   # Control
   timeControl <- trainControl(method = "timeslice",
@@ -223,7 +179,8 @@ model_train <- function(WeatherStation, col_importance_number = 40) {
                               horizon = 365*1,
                               fixedWindow = TRUE,
                               skip = 365*3,
-                              allowParallel = TRUE)
+                              allowParallel = TRUE
+                              preProcOptions = list(thresh = 0.9))
   
   # Grid search
   tuneControl <- expand.grid(C = 10^seq(from = -2, to = 1, by = 0.1),
@@ -238,7 +195,7 @@ model_train <- function(WeatherStation, col_importance_number = 40) {
                       # tuneLength = 20,
                       tuneGrid = tuneControl,
                       trControl = timeControl,
-                      preProcess = c('center', 'scale'))
+                      preProcess = c('pca'))
 
   })
 
@@ -250,7 +207,6 @@ model_train <- function(WeatherStation, col_importance_number = 40) {
 
   return(list(
     WeatherStation = WeatherStation,
-    col_importance = col_importance,
     train_time = train_time,
     model = model,
     result = model_result
@@ -262,14 +218,14 @@ cl<-makeCluster(detectCores())
 registerDoParallel(cl)
 
 system.time({
-  model_trained <- lapply(data_solar_col_produ, model_train)
+  model_trained <- lapply(data_solar_col_produ[1:2], model_train)
 })
-names(model_trained) <- data_solar_col_produ
+names(model_trained) <- data_solar_col_produ[1:2]
 
 stopCluster(cl)
 
-saveRDS(model_trained, file.path('storage', 'model_trained15.rds'))
-# model_trained <- readRDS(file.path('storage', 'model_trained5.rds'))
+saveRDS(model_trained, file.path('storage', 'model_trained16.rds'))
+# model_trained <- readRDS(file.path('storage', 'model_trained16.rds'))
 
 rm(list=c('cl', 'model_train', 'model_result'))
 ```
@@ -324,7 +280,7 @@ model_result <- function(model_train, model_train_val, data_train, data_val, dat
   ))
 }
 
-model_apply <- function(WeatherStation, col_importance_number = 40) {
+model_apply <- function(WeatherStation) {
   
   # Final model trained
   trained_ <- model_trained[[WeatherStation]]
@@ -336,17 +292,11 @@ model_apply <- function(WeatherStation, col_importance_number = 40) {
     sigma = trained_$model$finalModel@kernelf@kpar$sigma
   )
   
-  # Columns to use, depending on the 'col_importance_number'
-  col_importance <- trained_$col_importance
-  
   # Subset selection
-  data_train <- bind_cols(WeatherStation = data_solar_add_train[[WeatherStation]],
-                    select(data_solar_add_train, !!col_importance))
-  data_val <- bind_cols(WeatherStation = data_solar_add_val[[WeatherStation]],
-                    select(data_solar_add_val, !!col_importance))
+  data_train <- bind_cols(WeatherStation = data_solar_add_train[[WeatherStation]], data_solar_add_train)
+  data_val <- bind_cols(WeatherStation = data_solar_add_val[[WeatherStation]], data_solar_add_val)
   data_train_val <- bind_rows(data_train, data_val)
-  data_test <- bind_cols(WeatherStation = data_solar_add_test[[WeatherStation]], 
-                    select(data_solar_add_test, 'Date', 'Date2', !!col_importance))
+  data_test <- bind_cols(WeatherStation = data_solar_add_test[[WeatherStation]], select(data_solar_add_test, 'Date', 'Date2'))
   
   # Control
   timeControl <- trainControl(method = "timeslice",
@@ -354,7 +304,8 @@ model_apply <- function(WeatherStation, col_importance_number = 40) {
                               horizon = 365*1,
                               fixedWindow = TRUE,
                               skip = 365*3,
-                              allowParallel = TRUE)
+                              allowParallel = TRUE,
+                              preProcOptions = list(thresh = 0.95))
 
   # Model
   train_time <- system.time({
@@ -364,7 +315,7 @@ model_apply <- function(WeatherStation, col_importance_number = 40) {
                       metric = "RMSE",
                       tuneGrid = model_coef,
                       trControl = timeControl,
-                      preProcess = c('center', 'scale'))
+                      preProcess = c('pca'))
   })
   
   # Results
@@ -392,8 +343,8 @@ names(model_applied) <- data_solar_col_produ
 
 stopCluster(cl)
 
-saveRDS(model_applied, file.path('storage', 'model_applied15.rds'))
-# model_applied <- readRDS(file.path('storage', 'model_applied15.rds'))
+saveRDS(model_applied, file.path('storage', 'model_applied16.rds'))
+# model_applied <- readRDS(file.path('storage', 'model_applied16.rds'))
 
 rm(list=c('cl', 'model_apply', 'model_result'))
 ```
