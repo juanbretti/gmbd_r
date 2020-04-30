@@ -1,0 +1,266 @@
+---
+title: "EDA with commentary"
+author: "Group E"
+date: "4/25/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Preparation
+
+## Load libraries
+
+```{r load_libraries, message=FALSE}
+# General purpose
+library(tidyverse)
+library(data.table)
+library(lubridate)
+
+# Descriptive
+library(skimr)
+
+# Visualization
+library(ggplot2)
+library(PerformanceAnalytics)
+library(corrplot)
+
+# Mapping
+library(leaflet)
+library(leaflet.extras)
+library(sf)
+#library(gdtools)
+
+# Calculations
+library(forecast)
+library(caret)
+library(mice)
+library(outliers) 
+
+library(foreach)
+library(doParallel)
+```
+
+## Source From R script
+```{r}
+
+source('20200411_Main_EDA.R', echo = FALSE, print.eval = FALSE)
+
+```
+
+## Read prepared Datasets
+```{r,eval=FALSE}
+# Solar production dataset 
+data_solar_train
+data_solar_test
+data_station 
+data_add
+
+```
+
+# Overview: Data structure and content
+
+## General overview
+
+### NA check
+
+```{r}
+f_check_na(data_solar_train)
+f_check_na(data_solar_test)
+f_check_na(data_station)
+f_check_na(data_add)
+
+```
+> Comment: The missing values in data_add will be imputed later
+
+### Constant Variables check
+```{r}
+criteria_variables(data_solar_train)
+criteria_variables(data_solar_test)
+criteria_variables(data_station)
+criteria_variables(data_add)
+```
+
+### Outliers check
+
+Based on:
+https://www.kaggle.com/rtatman/data-cleaning-challenge-outliers
+https://cran.r-project.org/web/packages/outliers/outliers.pdf
+
+#### Outliers in Solar data
+
+```{r}
+
+solar_data_outlier_skim
+solar_data_outlier_hist
+solar_data_outlier_table
+
+```
+> The data is normally distributed. There is only one row that could be considered outliers. 
+
+### Data overview solar data set 
+```{r}
+
+```
+
+
+#### Additional data
+First, need to complete the data set to be able to use 'outliers()'.
+
+## Solar dataset
+
+### Training
+
+```{r, eval=FALSE}
+skim(data_solar_train)
+glimpse(data_solar_train)
+```
+
+### Testing
+
+```{r, eval=FALSE}
+skim(data_solar_test)
+glimpse(data_solar_test)
+```
+
+## Stations informaiton
+
+```{r, eval=FALSE}
+skim(data_station)
+glimpse(data_station)
+```
+
+## Additional information
+
+```{r, eval=FALSE}
+skim(data_add)
+glimpse(data_add)
+```
+
+# Descriptive plots
+
+## Principal weather stations
+First, rank weather stations sorted by volume
+```{r}
+
+principal_weather_station
+
+```
+Then, we create 2 plots, the first one shows top 7 weather stations
+```{r}
+principal_station_plot
+```
+## Rank position change over time
+We are interested to find out how does the production changes over time. By looking at the top 10 stations. 
+
+```{r}
+p_rank
+```
+## Total production
+Descriptive plot to show the production recorded in millions
+```{r}
+total_production_p
+```
+
+## Evolution of principal weather stations
+Plot for the top highest weather stations.
+```{r}
+p_top_five_ts
+```
+## What about Training and Test?
+```{r}
+p_train_test
+```
+
+## Seasonality
+https://towardsdatascience.com/forecasting-with-r-trends-and-seasonality-def24280e71f
+```{r}
+p_seasonality_all
+```
+
+### Seanonality of the top 5 stations
+
+```{r}
+p_seasonality_top_5
+```
+
+# Geolocalization
+
+## Positions - Where are the stations located?
+```{r}
+map_stations
+```
+
+## Heatmap - visualizes production volume
+```{r}
+map_production
+```
+
+# Correlations 
+## What can we see from the top 5 stations with the top 5 principal components?
+```{r}
+p_corr
+```
+
+# Histograms, density kernel and boxplot
+
+## Of general production
+```{r}
+p_distri_prod
+```
+
+## Of each weather station 
+```{r}
+p_histogram_density
+
+p_boxplot
+```
+## Of predictors 
+```{r}
+predictor_density
+predictor_boxplot
+```
+
+# Variable Importance 
+
+Computed Variable Importance is stored in data_solar_importance
+```{r}
+names(data_solar_importance)
+```
+> Note: used parallel computing to reduce run time 
+
+# Additional information
+
+## Feature visualization
+```{r}
+p_additional
+```
+## Correlation in additional dataset
+```{r}
+p_corrplot
+```
+## Impute missing values in additional dataset
+```{r}
+complete_mice
+```
+## Outliers in additional dataset
+```{r}
+add_outlier
+add_outlier_hist
+add_outlier_table 
+```
+
+## PCA of additional dataset
+
+```{r}
+data_add_col_pca
+data_add_pca
+```
+### Plot density and boxplots
+```{r}
+pca_histogram_density
+pca_boxplot
+
+```
