@@ -11,6 +11,9 @@ library(shiny)
 # Visualization
 library(ggplot2)
 library(ggpubr)
+library(ggpubr)
+library(PerformanceAnalytics)
+library(corrplot)
 
 # Mapping
 library(leaflet)
