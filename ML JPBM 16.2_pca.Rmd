@@ -136,6 +136,7 @@ https://github.com/topepo/caret/blob/master/models/files/svmRadialSigma.R
 https://stackoverflow.com/questions/30233144/time-series-splitting-data-using-the-timeslice-method
 https://robjhyndman.com/hyndsight/tscv/
 http://www.quintuitive.com/2016/09/25/better-model-selection-evolving-models/
+https://www.rdocumentation.org/packages/caret/versions/6.0-86/topics/trainControl
 
 ```{r}
 model_result <- function(model_train, data_train, data_val) {
@@ -171,32 +172,24 @@ model_result <- function(model_train, data_train, data_val) {
 model_train <- function(WeatherStation) {
   # Subset selection
   data_train <- bind_cols(WeatherStation = data_solar_add_train[[WeatherStation]],
-                    select(data_solar_add_train, all_of(c(data_solar_col_predi, data_add_col))))
+                    data_solar_add_train %>% 
+                      select(all_of(c(data_solar_col_predi, data_add_col))) %>% 
+                      rename_at(vars(starts_with("PC")), function(x) paste0(x,'_solar'))
+                    )
   data_val <- bind_cols(WeatherStation = data_solar_add_val[[WeatherStation]],
-                    select(data_solar_add_val, all_of(c(data_solar_col_predi, data_add_col))))
+                    data_solar_add_val %>% 
+                      select(all_of(c(data_solar_col_predi, data_add_col))) %>% 
+                      rename_at(vars(starts_with("PC")), function(x) paste0(x,'_solar'))
+                    )
 
-  # PCA
-  a <- select(data_solar_add_train, all_of(c(data_solar_col_predi, data_add_col)))
-  skim(a)
-  pre_model_train <- preProcess(x = a, method = c('pca'))
-  pre_model_train <- preProcess(a, method = c('pca'))
-  pre_model_trained <- predict(pre_model_train, a)
-  colnames(a)
-  # pre_model_train <- prcomp(a, scale = TRUE)
-  pre_model_trained <- as.data.frame(predict(pre_model_train, newdata = a))
-  pre_model_valed <- predict(pre_model_train, newdata = data_val)
-  
-  
-  a <- preProcess(mtcars, method = "pca")
-  b <- predict(a, mtcars)
-  
   # Control
   timeControl <- trainControl(method = "timeslice",
                               initialWindow = 365*5,
                               horizon = 365*1,
                               fixedWindow = TRUE,
                               skip = 365*3,
-                              allowParallel = TRUE)
+                              allowParallel = TRUE,
+                              preProcOptions = list(thresh = 0.8))
   
   # Grid search
   tuneControl <- expand.grid(C = 10^seq(from = -2, to = 1, by = 0.1),
@@ -205,26 +198,25 @@ model_train <- function(WeatherStation) {
   # Model
   train_time <- system.time({
     model <- caret::train(WeatherStation ~ .,
-                      data = pre_model_trained,
+                      data = data_train,
                       method = "svmRadialSigma",
                       metric = "RMSE",
                       tuneGrid = tuneControl,
+                      preProcess = c('pca'),
                       trControl = timeControl)
-
   })
 
   # Results
-  model_result <- model_result(model, pre_model_trained, pre_model_valed)
+  model_result_ <- model_result(model, data_train, data_val)
   
   # To check the status
-  print(paste(WeatherStation, Sys.time(), train_time[3], model_result$combined$mae_ratio, sep = ' || '))
+  print(paste(WeatherStation, Sys.time(), train_time[3], model_result_$combined$mae_ratio, sep = ' || '))
 
   return(list(
     WeatherStation = WeatherStation,
     train_time = train_time,
     model = model,
-    pre_model = pre_model_train,
-    result = model_result
+    result = model_result_
   ))
 }
 
@@ -239,7 +231,7 @@ names(model_trained) <- data_solar_col_produ[1:2]
 
 stopCluster(cl)
 
-saveRDS(model_trained, file.path('storage', 'model_trained16.rds'))
+# saveRDS(model_trained, file.path('storage', 'model_trained16.rds'))
 # model_trained <- readRDS(file.path('storage', 'model_trained16.rds'))
 
 rm(list=c('cl', 'model_train', 'model_result'))
