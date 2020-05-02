@@ -19,8 +19,13 @@ library(corrplot)
 library(leaflet)
 library(leaflet.extras)
 library(leafpop)
-library(sf)
 library(gdtools)
+
+# Spatial
+library(sf)
+library(sp)
+library(rgdal)
+library(rgeos)
 
 ## Load data ----
 
@@ -107,6 +112,60 @@ weatherstation_plot <- function(data){
 # Save and load the plots, to improve speed of App starting
 # saveRDS(data_plot, file.path('GroupE', 'storage', 'data_plot.rds'))
 # data_plot <- readRDS(file.path('storage', 'data_plot.rds'))
+
+## Creating the spatial dataset ----
+
+#CRS
+CRSLatLon<-CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs ")
+#http://spatialreference.org/ref/sr-org/7483/, WGS84 Web Mercator (Auxiliary Sphere) (Google, Spotfire)
+CRSProj<-CRS("+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext  +no_defs")
+
+# Create the SpatialPointsDataFrame
+WeatherStation_point<-SpatialPointsDataFrame(coords = data_station[, c('elon', 'nlat')], data = data_station, proj4string=CRSLatLon) %>% 
+    spTransform(CRSProj)
+
+# Calculate the closest weather stations
+ws_distance <- function(spdf, ws, distance) {
+    # Add distance to 'HOOK'
+    spdf@data$Distance <- as.numeric(gDistance(spgeom1 = subset(spdf, stid == ws), spgeom2 = spdf, byid=TRUE))
+    
+    # List of neighbors
+    ws_neighbors_spdf <- subset(spdf, Distance != 0 & Distance <= distance)
+    # Replicate the source of point
+    ws_origin <- subset(spdf, stid == ws)
+    ws_origin <- as.data.frame(ws_origin@coords)
+    ws_origin <- bind_rows(replicate(length(ws_neighbors_spdf), ws_origin, simplify = FALSE))
+    # Coords from the neighbors
+    ws_destination <- ws_neighbors_spdf@coords
+    # https://stackoverflow.com/questions/29287237/connect-xy-points-with-spatial-lines
+    # Number of rows
+    ws_number <- length(ws_neighbors_spdf)
+    # Creation of the lines
+    ws_lines <- vector("list", ws_number)
+    for (i in 1:ws_number) {
+        ws_lines[[i]] <- Lines(list(Line(rbind(ws_origin[i, ], ws_destination[i,]))), as.character(i))
+    }
+    ws_lines<-SpatialLines(ws_lines)
+    
+    return(list(
+        lines = ws_lines,
+        neighbors = ws_neighbors_spdf@data$stid,
+        neighbors_spdf = ws_neighbors_spdf
+    ))
+}
+
+
+ws_ <- ws_distance(WeatherStation_point, 'HOOK', 250000)$lines
+
+plot(WeatherStation_point)
+plot(ws_, add=TRUE)
+
+
+
+
+
+
+
 
 ## App ----
 
