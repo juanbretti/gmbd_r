@@ -34,7 +34,7 @@ data_station <- fread(file = file.path('data', 'station_info.csv'))
 
 ## Transform data ----
 
-# Source dataset
+# Source dataset ----
 data_solar <- data_solar[j = Date2 := as.Date(x = Date, format = "%Y%m%d")]
 
 # Add date conversions
@@ -57,9 +57,7 @@ data_solar_col_dates <- setdiff(colnames(data_solar), c(data_solar_col_produ, da
 data_solar_train <- data_solar[i = 1:5113]
 # data_solar_test <- data_solar[i = 5114:nrow(data_solar), j = .SD, .SDcols = c(data_solar_col_dates, data_solar_col_predi)]
 
-## Transform data ----
-
-# Position for map
+# Positions for map ----
 data_position <- data_solar_train %>% 
     select(-all_of(data_solar_col_predi)) %>% 
     pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>% 
@@ -67,7 +65,7 @@ data_position <- data_solar_train %>%
     summarise(ValueMean = mean(Value)) %>% 
     left_join(data_station, by = c('WeatherStation' = 'stid'))
 
-# Plots for map
+# Plots for map ----
 # https://www.datanovia.com/en/lessons/combine-multiple-ggplots-into-a-figure/
 weatherstation_plot <- function(data){
     p_all <- data %>%
@@ -99,7 +97,7 @@ weatherstation_plot <- function(data){
     return(plot)
 }
 
-# Create all the plots, takes some time
+# Create all the plots, takes some time ----
 # data_plot <- data_solar_train %>%
 #     dplyr::select(all_of(c(data_solar_col_dates, data_solar_col_produ))) %>%
 #     pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>%
@@ -111,12 +109,11 @@ weatherstation_plot <- function(data){
 
 # Save and load the plots, to improve speed of App starting
 # saveRDS(data_plot, file.path('GroupE', 'storage', 'data_plot.rds'))
-# data_plot <- readRDS(file.path('storage', 'data_plot.rds'))
+data_plot <- readRDS(file.path('storage', 'data_plot.rds'))
 
-## Creating the spatial dataset ----
-
+# Creating the spatial dataset ----
 #CRS
-CRSLatLon<-CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs ")
+CRSLatLon<-CRS("+proj=longlat +ellps=WGS84 +datum=WGS84 +no_defs ") #"+init=epsg:4326"
 #http://spatialreference.org/ref/sr-org/7483/, WGS84 Web Mercator (Auxiliary Sphere) (Google, Spotfire)
 CRSProj<-CRS("+proj=merc +a=6378137 +b=6378137 +lat_ts=0.0 +lon_0=0.0 +x_0=0.0 +y_0=0 +k=1.0 +units=m +nadgrids=@null +wktext  +no_defs")
 
@@ -128,7 +125,6 @@ WeatherStation_point<-SpatialPointsDataFrame(coords = data_station[, c('elon', '
 ws_distance <- function(spdf, ws, distance) {
     # Add distance to 'HOOK'
     spdf@data$Distance <- as.numeric(gDistance(spgeom1 = subset(spdf, stid == ws), spgeom2 = spdf, byid=TRUE))
-    
     # List of neighbors
     ws_neighbors_spdf <- subset(spdf, Distance != 0 & Distance <= distance)
     # Replicate the source of point
@@ -140,32 +136,27 @@ ws_distance <- function(spdf, ws, distance) {
     # https://stackoverflow.com/questions/29287237/connect-xy-points-with-spatial-lines
     # Number of rows
     ws_number <- length(ws_neighbors_spdf)
-    # Creation of the lines
-    ws_lines <- vector("list", ws_number)
-    for (i in 1:ws_number) {
-        ws_lines[[i]] <- Lines(list(Line(rbind(ws_origin[i, ], ws_destination[i,]))), as.character(i))
+    # If I have neighbors
+    if (ws_number>0) {
+        # Creation of the lines
+        ws_lines <- vector("list", ws_number)
+        for (i in 1:ws_number) {
+            ws_lines[[i]] <- Lines(list(Line(rbind(ws_origin[i, ], ws_destination[i,]))), as.character(i))
+        }
+        ws_lines <- SpatialLines(ws_lines, proj4string = CRSProj) %>% 
+            spTransform(CRSLatLon)
+        # List of neighbors
+        ws_neighbors <- ws_neighbors_spdf@data$stid
+    } else {
+        ws_lines <- ws_neighbors <- NULL
     }
-    ws_lines<-SpatialLines(ws_lines)
     
     return(list(
+        neig_number = ws_number,
         lines = ws_lines,
-        neighbors = ws_neighbors_spdf@data$stid,
-        neighbors_spdf = ws_neighbors_spdf
+        neighbors = ws_neighbors
     ))
 }
-
-
-ws_ <- ws_distance(WeatherStation_point, 'HOOK', 250000)$lines
-
-plot(WeatherStation_point)
-plot(ws_, add=TRUE)
-
-
-
-
-
-
-
 
 ## App ----
 
@@ -173,35 +164,58 @@ plot(ws_, add=TRUE)
 ui <- fluidPage(
     navbarPage("Weather stations", id = "nav",
     tabPanel("Map",
-        div(class = "outer", tags$head(includeCSS("styles.css")),
-            leafletOutput("map", width = "100%", height = "100%")
+        div(class = "outer", 
+            tags$head(includeCSS("styles.css")),
+            leafletOutput("map", width = "100%", height = "100%"),
+            absolutePanel(id = "controls", class = "panel panel-default", 
+                          top = 60, right = 20, width = 330, fixed = TRUE, draggable = TRUE, bottom = "auto", height = "auto", left = "auto",
+                          sliderInput(inputId = "distance", label = "Distance", min = 10e3, max = 500e3, value = 100e3, step = 10e3, ticks = FALSE),
+            ),
+            tags$div(id="cite", 'GMBD, Intake 2020, Group E')
         )
     ),
     tabPanel("Data")
 ))
 
-# Define server logic required to draw a histogram
-server <- function(input, output) {
+# Create the server
+server <- function( input, output, session ){
     
+    # First draw
     output$map <- renderLeaflet({
         leaflet(data = data_position) %>%
-            addTiles() %>%
+            addProviderTiles("CartoDB.Positron") %>%
             addCircleMarkers(
                 lng=~elon, lat=~nlat,
                 radius = ~ValueMean/1e6, 
                 label = ~WeatherStation,
+                layerId = ~WeatherStation,
                 group = 'data_solar') %>% 
             addHeatmap(
                 lng = ~elon, lat = ~nlat,
                 intensity = ~ValueMean,
-                blur = 90, max = 1, radius = 60, minOpacity = 0.5)
-            # leafpop::addPopupGraphs(
-            #     data_plot$plots,
-            #     group = 'data_solar',
-            #     width = 300, height = 400)
+                layerId = 'Heat',
+                blur = 90, max = 1, radius = 60, minOpacity = 0.5) %>% 
+            leafpop::addPopupGraphs(
+                data_plot$plots,
+                group = 'data_solar',
+                width = 300, height = 400)
+    }) 
+
+    # After a click
+    observeEvent(paste(input$map_marker_click, input$distance), ignoreNULL = TRUE, ignoreInit = TRUE, {
+        ws_ <- ws_distance(WeatherStation_point, input$map_marker_click$id, input$distance)
+        if (ws_$neig_number>0) {
+            leaflet::leafletProxy(mapId = "map") %>%
+                clearGroup('lines') %>% 
+                addPolygons(
+                    data = ws_$lines,
+                    opacity = 0.5,
+                    layerId = as.character(1:ws_$neig_number),
+                    group = 'lines'
+                )
+        }
     })
-    
-}
+} 
 
 # Run the application 
 shinyApp(ui = ui, server = server)
