@@ -43,6 +43,7 @@ library(outliers)
 
 library(foreach)
 library(doParallel)
+library(parallel)
 ```
 
 ###### 2 Source From R script
