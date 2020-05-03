@@ -421,5 +421,7 @@ system.time({
 
 out <- tibble(Date = data_solar_add_predict$Date, predict_)
 write.table(x = out, file = file.path('storage', 'out.csv'), sep = ',', dec = '.', row.names = FALSE, quote = FALSE)
+
+rm(list=c('predict_', 'out'))
 ```
 

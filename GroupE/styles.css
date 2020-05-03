@@ -1,0 +1,35 @@
+div.outer {
+    position: fixed;
+    top: 50px;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+    padding: 0;
+}
+
+.leaflet-heatmap-layer {
+    opacity: .5;
+    background-color: white !important;
+}
+
+/* Position and style citation */
+#cite {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    font-size: 12px;
+}
+
+/* Customize fonts */
+body, label, input, button, select { 
+    font-family: 'Helvetica Neue', Helvetica;
+    font-weight: 200;
+}
+h1, h2, h3, h4 { font-weight: 400; }
+
+#controls {
+    background-color: white;
+    padding: 0px 20px 20px 20px;
+    cursor: move;
+}
