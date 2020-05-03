@@ -1,0 +1,432 @@
+---
+title: "Programming R Workgroup Project: Machine Learning Model"
+author: "Group E"
+date: "3/20/2020"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Preparation
+
+## Load libraries
+
+```{r load_libraries, message=FALSE}
+# General porpuse
+library(tidyverse)
+library(data.table)
+library(lubridate)
+
+# Descriptive
+library(skimr)
+
+# Visualization
+library(ggplot2)
+
+# Machine learning
+library(e1071)
+library(caret)
+library(cvTools)
+
+# Calculations
+library(forecast)
+library(mice)
+library(outliers) 
+
+# Paralel computing
+library(foreach)
+library(doParallel)
+```
+
+# Load data
+
+```{r load_data}
+data_solar <- readRDS(file = file.path('data', 'solar_dataset.RData'))
+data_station <- fread(file = file.path('data', 'station_info.csv'))
+data_add <- readRDS(file = file.path('data', 'additional_variables.RData'))
+```
+
+## Transform data
+
+```{r}
+# Source dataset
+data_solar <- data_solar[j = Date2 := as.Date(x = Date, format = "%Y%m%d")]
+
+# Add date conversions
+data_solar <- data_solar %>% 
+  mutate(Year = year(Date2),
+         Month = month(Date2, label = TRUE),
+         Day = day(Date2),
+         Day_Of_Year = yday(Date2),
+         Day_Of_Week = wday(Date2, label = TRUE, week_start = 1),
+         Days_Since_Origin = time_length(interval(origin, Date2), unit = 'day')) %>% 
+  as.data.table(.)
+
+# Columns defined from the enunciate
+data_solar_col_produ <- colnames(data_solar)[2:99]
+data_solar_col_predi <- colnames(data_solar)[100:456]
+data_solar_col_dates <- setdiff(colnames(data_solar), c(data_solar_col_produ, data_solar_col_predi))
+
+# Columns defined from the enunciate
+data_add_col <- colnames(data_add)[2:101]
+data_add_col_dates <- setdiff(colnames(data_add), data_add_col)
+
+time_length(interval(range(data_solar$Date2)), unit = "year")
+2012-1994
+table(data_solar$Month)
+str(data_solar$Month)
+```
+
+> principal_weather_station
+ [1] "KENT" "BOIS" "HOOK" "HOLL" "GOOD" "TIPT" "BEAV" "ARNE" "CAMA" "CHEY" "ERIC" "MANG" "WOOD" "BUTL" "BUFF" "BESS" "RETR" "SLAP" "HOBA" "FREE" "RING"
+[22] "ALTU" "WEAT" "MEDI" "WAUR" "CHER" "APAC" "WATO" "SEIL" "FTCB" "HINT" "PUTN" "ACME" "MAYR" "LAHO" "KETC" "ELRE" "SULP" "NINN" "BREC" "WASH" "MINC"
+[43] "BYAR" "CHIC" "GUTH" "FAIR" "SPEN" "MARE" "BURN" "MADI" "SHAW" "REDR" "DURA" "PERK" "PAUL" "MEDF" "ADAX" "NEWK" "PAWN" "HUGO" "BURB" "STIL" "WYNO"
+[64] "FORA" "HASK" "BLAC" "CENT" "BOWL" "BRIS" "OILT" "WILB" "CHAN" "NOWA" "BIXB" "OKEM" "LANE" "TISH" "SKIA" "STUA" "COPA" "IDAB" "TAHL" "MIAM" "VINI"
+[85] "SALL" "EUFA" "STIG" "MCAL" "JAYX" "COOK" "PRYO" "WIST" "CLOU" "OKMU" "TALI" "CLAY" "WEST" "MTHE"
+
+## Complete data_add
+
+```{r}
+data <- select(data_add, !!data_add_col)
+
+m_ <- 5
+maxit_ <- 5
+# data_mice_ <- mice(data, m=m_, maxit=maxit_, meth='pmm', seed=500)
+# saveRDS(data_mice_, file.path('storage', 'data_add_mice.rds'))
+data_mice_ <- readRDS(file.path('storage', 'data_add_mice.rds'))
+# summary(data_mice_)
+
+# Average of all the Multivariate Imputation
+data_mice <- 0
+for (i in 1:m_) data_mice <- data_mice + complete(data_mice_, i)
+data_mice <- data_mice/m_
+
+data_add_mice <- bind_cols(select(data_add, !!data_add_col_dates), data_mice)
+
+# Cleanup
+rm(list = c('data', 'data_mice_', 'm_', 'maxit_', 'i', 'data_mice', 'data_add'))
+```
+
+# Join datasets
+
+```{r}
+data_solar_add <- data_solar %>% 
+  left_join(data_add_mice, by = 'Date', suffix = c(".solar", ".add"))
+
+rm(list = c('data_solar', 'data_add_mice'))
+# skim(data_solar_add)
+```
+
+# Train, validation, test and predict split
+
+```{r}
+data_solar_add_train_ <- data_solar_add[1:5113, ]
+data_solar_add_predict <- data_solar_add[5114:nrow(data_solar_add), c(data_solar_col_dates, data_solar_col_predi, data_add_col)]
+
+# row indices for training data (70%)
+nrow_train <- round(nrow(data_solar_add_train_)*.7, 0)
+# row indices for validation data (15%)
+nrow_val <- round(nrow(data_solar_add_train_)*.15, 0)
+# row indices for test data (15%), the reminder rows
+nrow_test <- nrow(data_solar_add_train_)-nrow_train-nrow_val
+
+data_solar_add_train <- data_solar_add_train_[1:nrow_train, ]
+data_solar_add_val <- data_solar_add_train_[(nrow_train+1):(nrow_train+nrow_val), ]
+data_solar_add_test <- data_solar_add_train_[(nrow_train+nrow_val+1):nrow(data_solar_add_train_), ]
+
+rm(list=c('nrow_train', 'nrow_val', 'nrow_test', 'data_solar_add_train_', 'data_solar_add', 'data_add_col_dates'))
+```
+
+# Variable importance
+Using 'filterVarImp'
+
+```{r}
+# cl<-makeCluster(detectCores())
+# registerDoParallel(cl)
+# 
+# select_important<-function(dat, y, n_vars=ncol(dat)){
+#   varimp <- filterVarImp(x = dat, y=y, nonpara=TRUE)
+#   varimp <- data.table(variable=rownames(varimp),imp=varimp[, 1])
+#   varimp <- varimp[order(-imp)]
+#   selected <- varimp$variable[1:n_vars]
+#   return(selected)
+# }
+# 
+# time_importance <- system.time({
+# data_col_importance <- foreach (x = data_solar_col_produ, .errorhandling="remove", .packages=(.packages())) %dopar% {
+#                                     select_important(dat=select(data_solar_add_train,
+#                                                                 !!c(data_solar_col_predi, 'Day_Of_Year', 'Day_Of_Week', 'Days_Since_Origin', data_add_col)),
+#                                                      y = data_solar_add_train[[x]])
+#                                     }
+# })
+# names(data_col_importance) <- data_solar_col_produ
+# 
+# print(time_importance)
+# stopCluster(cl)
+
+# saveRDS(data_col_importance, file.path('storage', 'data_col_importance.rds'))
+data_col_importance <- readRDS(file.path('storage', 'data_col_importance.rds'))
+
+rm(list=c('cl', 'select_important', 'time_importance'))
+```
+
+# Hyperparameter optimization
+Using caret library, for all the 'WeatherStations'
+https://topepo.github.io/caret/available-models.html
+https://topepo.github.io/caret/data-splitting.html
+https://github.com/lucaseustaquio/ams-2013-2014-solar-energy/blob/master/ams-2013-2014-R/
+https://github.com/topepo/caret/blob/master/models/files/svmRadialSigma.R
+https://stackoverflow.com/questions/30233144/time-series-splitting-data-using-the-timeslice-method
+https://robjhyndman.com/hyndsight/tscv/
+http://www.quintuitive.com/2016/09/25/better-model-selection-evolving-models/
+
+```{r}
+model_train <- function(WeatherStation, col_importance_number = 40) {
+  # Columns to use, depending on the 'col_importance_number'
+  col_importance <- data_col_importance[[WeatherStation]][1:col_importance_number]
+  # Subset selection
+  data_train <- bind_cols(WeatherStation = data_solar_add_train[[WeatherStation]],
+                    select(data_solar_add_train, !!col_importance))
+  data_val <- bind_cols(WeatherStation = data_solar_add_val[[WeatherStation]],
+                    select(data_solar_add_val, !!col_importance))
+
+  # Control
+  timeControl <- trainControl(method = "timeslice",
+                              initialWindow = 365*2,
+                              horizon = 365*1,
+                              fixedWindow = TRUE,
+                              skip = 365*3,
+                              allowParallel = TRUE)
+
+  # Model
+  train_time <- system.time({
+    model <- caret::train(WeatherStation ~ .,
+                      data = data_train,
+                      method = "svmRadialSigma",
+                      metric = "RMSE",
+                      tuneLength = 15,
+                      trControl = timeControl,
+                      preProcess = c('center', 'scale'))
+
+  })
+
+  # To check the status
+  print(paste(WeatherStation, Sys.time(), train_time[3], sep = ' || '))
+
+  return(list(
+    WeatherStation = WeatherStation,
+    col_importance = col_importance,
+    train_time = train_time,
+    model = model
+  ))
+}
+
+# Parallel grid search
+cl<-makeCluster(detectCores())
+registerDoParallel(cl)
+
+system.time({
+  model_trained <- lapply(data_solar_col_produ, model_train)
+})
+names(model_trained) <- data_solar_col_produ
+
+stopCluster(cl)
+
+# saveRDS(model_trained, file.path('storage', 'model_trained2.rds'))
+model_trained <- readRDS(file.path('storage', 'model_trained2.rds'))
+
+rm(list=c('cl', 'model_train'))
+```
+
+## Results
+
+```{r}
+model_result <- function(WeatherStation, col_importance_number) {
+  
+  # Columns to use, depending on the 'col_importance_number'
+  col_importance <- data_col_importance[[WeatherStation]][1:col_importance_number]
+  # Subset selection
+  data_train <- bind_cols(WeatherStation = data_solar_add_train[[WeatherStation]],
+                    select(data_solar_add_train, !!col_importance))
+  data_val <- bind_cols(WeatherStation = data_solar_add_val[[WeatherStation]],
+                    select(data_solar_add_val, !!col_importance))
+  
+  model_train <- model_trained[[WeatherStation]]$model
+  # Get model predictions
+  predictions_train <- predict(model_train, newdata = data_train)
+  predictions_val <- predict(model_train, newdata = data_val)
+  # Get errors
+  errors_train <- predictions_train - data_train$WeatherStation
+  errors_val <- predictions_val - data_val$WeatherStation
+  # Compute Metrics
+  mse_train <- mean(errors_train^2)
+  mae_train <- mean(abs(errors_train))
+  mse_val <- mean(errors_val^2)
+  mae_val <- mean(abs(errors_val))
+  # Combining the results
+  result_combined <- tibble(mse_train, mse_val, mae_train, mae_val)
+  # Quick plot for 'Test'
+  result_plot <- ggplot() +
+    geom_point(aes(y=predictions_val, x=1:nrow(data_val)), color = 'red') +
+    geom_point(aes(y=data_val$WeatherStation, x=1:nrow(data_val)), color = 'blue')
+  
+  return(list(
+    combined = result_combined,
+    plot = result_plot
+  ))
+}
+
+result_combined <- data_solar_col_produ %>% 
+  map_dfr(function(x) bind_cols(WeatherStation = x, model_result(x, 40)$combined)) %>% 
+  mutate(mae_ratio = mae_val/mae_train,
+         fitting = ifelse(mae_ratio<1, 'Underfitting', ifelse(mae_ratio==0, 'Fit', 'Overfitting'))) %>% 
+  arrange(mae_ratio)
+
+ggplot(result_combined) + 
+  geom_histogram(aes(mae_ratio, fill = fitting))
+
+```
+
+
+# Train and validation final results
+Using caret library, for all the 'WeatherStations'
+
+```{r}
+model_result <- function(model_train, model_train_val, data_train, data_val, data_train_val, data_test) {
+  # Get model predictions
+  predictions_train <- predict(model_train, newdata = data_train)
+  predictions_val <- predict(model_train, newdata = data_val)
+  predictions_train_val <- predict(model_train_val, newdata = data_train_val)
+  predictions_test <- predict(model_train_val, newdata = data_test)
+  # Get errors
+  errors_train <- predictions_train - data_train$WeatherStation
+  errors_val <- predictions_val - data_val$WeatherStation
+  errors_train_val <- predictions_train_val - data_train_val$WeatherStation
+  errors_test <- predictions_test - data_test$WeatherStation
+  # Compute Metrics
+  mse_train <- mean(errors_train^2)
+  mae_train <- mean(abs(errors_train))
+  mse_val <- mean(errors_val^2)
+  mae_val <- mean(abs(errors_val))
+  mse_train_val <- mean(errors_train_val^2)
+  mae_train_val <- mean(abs(errors_train_val))
+  mse_test <- mean(errors_test^2)
+  mae_test <- mean(abs(errors_test))
+  # Combining the results
+  result_combined <- tibble(mse_train, mse_val, mse_train_val, mse_test, mae_train, mae_val, mae_train_val, mae_test)
+  # Quick plot for 'Test'
+  result_plot <- ggplot() +
+    geom_point(aes(y=predictions_test, x=data_test$Date2), color = 'red') +
+    geom_point(aes(y=data_test$WeatherStation, x=data_test$Date2), color = 'blue')
+  
+  return(list(
+    combined = result_combined,
+    plot = result_plot
+  ))
+}
+
+model_apply <- function(WeatherStation, col_importance_number = 40) {
+  
+  # Final model trained
+  trained_ <- model_trained[[WeatherStation]]
+  
+  # Final coefficients
+  model_coef <- data.table(
+    # epsilon = trained_$model$finalModel@param$epsilon,
+    C = trained_$model$finalModel@param$C,
+    sigma = trained_$model$finalModel@kernelf@kpar$sigma
+  )
+  
+  # Columns to use, depending on the 'col_importance_number'
+  col_importance <- trained_$col_importance
+  
+  # Subset selection
+  data_train <- bind_cols(WeatherStation = data_solar_add_train[[WeatherStation]],
+                    select(data_solar_add_train, !!col_importance))
+  data_val <- bind_cols(WeatherStation = data_solar_add_val[[WeatherStation]],
+                    select(data_solar_add_val, !!col_importance))
+  data_train_val <- bind_rows(data_train, data_val)
+  data_test <- bind_cols(WeatherStation = data_solar_add_test[[WeatherStation]], 
+                    select(data_solar_add_test, 'Date', 'Date2', !!col_importance))
+  
+  # Control
+  timeControl <- trainControl(method = "timeslice",
+                              initialWindow = 365*2,
+                              horizon = 365*1,
+                              fixedWindow = TRUE,
+                              skip = 365*3,
+                              allowParallel = TRUE)
+
+  # Model
+  train_time <- system.time({
+    model <- caret::train(WeatherStation ~ .,
+                      data = data_train_val,
+                      method = "svmRadialSigma",
+                      metric = "RMSE",
+                      tuneGrid = model_coef,
+                      trControl = timeControl,
+                      preProcess = c('center', 'scale'))
+  })
+  
+  # To check the status
+  print(paste(WeatherStation, Sys.time(), train_time[3], sep = ' || '))
+
+  # Results
+  model_result <- model_result(trained_$model, model, data_train, data_val, data_train_val, data_test)
+  
+  return(list(
+    WeatherStation = WeatherStation,
+    train_time = train_time,
+    model = model,
+    result = model_result
+  ))
+}
+
+# Parallel apply
+cl<-makeCluster(detectCores())
+registerDoParallel(cl)
+
+system.time({
+  model_applied <- lapply(data_solar_col_produ, model_apply)
+})
+names(model_applied) <- data_solar_col_produ
+
+stopCluster(cl)
+
+saveRDS(model_applied, file.path('storage', 'model_applied2.rds'))
+# model_applied <- readRDS(file.path('storage', 'model_applied2.rds'))
+
+rm(list=c('cl', 'model_apply', 'model_result'))
+```
+
+# Global results
+
+```{r}
+result_combined <- data_solar_col_produ %>% 
+  map_dfr(function(x) bind_cols(WeatherStation = x, model_applied[[x]]$result$combined)) %>% 
+  mutate(mae_ratio = mae_test/mae_train_val,
+         fitting = ifelse(mae_ratio<1, 'Underfitting', ifelse(mae_ratio==0, 'Fit', 'Overfitting'))) %>% 
+  arrange(mae_ratio)
+
+ggplot(result_combined) + 
+  geom_histogram(aes(mae_ratio, fill = fitting))
+```
+
+# Submission File
+Submission: https://www.kaggle.com/c/ams-2014-solar-energy-prediction-contest/submit
+Leaderboard: https://www.kaggle.com/c/ams-2014-solar-energy-prediction-contest/leaderboard#score
+Jesús: https://campus.ie.edu/webapps/discussionboard/do/message?action=list_messages&course_id=_114320331_1&nav=discussion_board_entry&conf_id=_251223_1&forum_id=_112829_1&message_id=_4658342_1
+
+```{r}
+system.time({
+  predict_ <- data_solar_col_produ %>% 
+    setNames(nm = .) %>% 
+    map_dfc(function(WeatherStation) predict(object = model_applied[[WeatherStation]]$model, newdata = data_solar_add_predict))
+})
+
+out <- tibble(Date = data_solar_add_predict$Date, predict_)
+write.table(x = out, file = file.path('storage', 'out.csv'), sep = ',', dec = '.', row.names = FALSE, quote = FALSE)
+```
+
