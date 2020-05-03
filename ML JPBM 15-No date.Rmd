@@ -268,7 +268,7 @@ names(model_trained) <- data_solar_col_produ
 
 stopCluster(cl)
 
-saveRDS(model_trained, file.path('storage', 'model_trained15.rds'))
+# saveRDS(model_trained, file.path('storage', 'model_trained15.rds'))
 # model_trained <- readRDS(file.path('storage', 'model_trained5.rds'))
 
 rm(list=c('cl', 'model_train', 'model_result'))

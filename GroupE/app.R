@@ -40,6 +40,7 @@ data_solar <- data_solar[j = Date2 := as.Date(x = Date, format = "%Y%m%d")]
 data_solar <- data_solar %>% 
     mutate(Year = year(Date2),
            Month = month(Date2, label = TRUE),
+           Year_Month = format(Date2, '%Y-%m'),
            Day = day(Date2),
            Day_Of_Year = yday(Date2),
            Day_Of_Week = wday(Date2, label = TRUE, week_start = 1),
@@ -61,12 +62,12 @@ data_position <- data_solar_train %>%
     select(-all_of(data_solar_col_predi)) %>% 
     pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>% 
     group_by(WeatherStation) %>%
-    summarise(ValueMean = mean(Value)) %>% 
+    summarise(ValueMean = tail(Value, 1)) %>% 
     left_join(data_station, by = c('WeatherStation' = 'stid'))
 
-# Plots for map ----
+# Plots for addPopupGraphs ----
 # https://www.datanovia.com/en/lessons/combine-multiple-ggplots-into-a-figure/
-weatherstation_plot <- function(data){
+plot_addPopupGraphs <- function(data){
     p_all <- data %>%
         ggplot() +
         geom_smooth(aes(x = Date2, y = Value/1e6)) +
@@ -84,7 +85,7 @@ weatherstation_plot <- function(data){
         labs(x = 'Month', y = '') +
         ggpubr::rotate_x_text()
 
-    p_Day_Of_Week <- data %>%
+    p_day_of_week <- data %>%
         ggplot(aes(x = Day_Of_Week, y = Value/1e6, fill = Weekend)) +
         geom_boxplot() +
         labs(x = 'Day of the week', y = '') +
@@ -94,7 +95,7 @@ weatherstation_plot <- function(data){
 
     plot <- ggarrange(
         p_all,
-        ggarrange(p_year, p_month, p_Day_Of_Week, ncol = 3),
+        ggarrange(p_year, p_month, p_day_of_week, ncol = 3),
         nrow = 2
     )
     plot <- annotate_figure(plot, top = text_grob(unique(data$WeatherStation), face = "bold", size = 14))
@@ -109,13 +110,44 @@ weatherstation_plot <- function(data){
 #     # filter(WeatherStation %in% data_solar_col_produ[1:2]) %>%
 #     group_by(WeatherStation) %>%
 #     do(
-#         plots = weatherstation_plot(.)
+#         plots = plot_addPopupGraphs(.)
 #     )
 # data_plot[[2]]
 
 # Save and load the plots, to improve speed of App starting
 # saveRDS(data_plot, file.path('GroupE', 'storage', 'data_plot.rds'))
-data_plot <- readRDS(file.path('storage', 'data_plot.rds'))
+# data_plot <- readRDS(file.path('storage', 'data_plot.rds'))
+
+# Plot for the right div
+
+plot_right_div <- function(ws_clicked, ws_neig, data = data_solar_train, head_ = 5){
+
+    # To have a faster plot, limit the number of curves
+    ws_ <- c(ws_clicked, head(ws_neig, head_))
+    if(length(ws_neig) <= head_) {
+        text_ <- paste(ws_, collapse = ', ')
+    } else {
+        text_ <- paste0(paste(ws_, collapse = ', '), '...')
+    }
+    
+    p_all <- data %>%
+        pivot_longer(cols = all_of(ws_), names_to = 'WeatherStation', values_to = 'Value') %>% 
+        ggplot(aes(x = Date2, y = Value/1e6, color = WeatherStation)) +
+        geom_smooth() +
+        labs(x = 'Date', y = 'Production in million') +
+        theme(legend.position = "none")
+    
+    p_month <- data %>% 
+        pivot_longer(cols = all_of(ws_), names_to = 'WeatherStation', values_to = 'Value') %>% 
+        ggplot(aes(x = Month, y = Value/1e6, color = WeatherStation)) +
+        geom_boxplot() +
+        labs(x = 'Month', y = 'Production in million')
+
+    plot <- ggarrange(p_all, p_month, nrow = 2)
+    plot <- annotate_figure(plot, top = text_grob(text_, face = "bold", size = 14))
+
+    return(plot)
+}
 
 # Creating the spatial dataset ----
 #CRS
@@ -129,7 +161,7 @@ WeatherStation_point<-SpatialPointsDataFrame(coords = data_station[, c('elon', '
 
 # Calculate the closest weather stations
 ws_distance <- function(spdf, ws, distance) {
-    # Add distance to 'HOOK'
+    # Add distance to the weather station selected in 'ws'
     spdf@data$Distance <- as.numeric(gDistance(spgeom1 = subset(spdf, stid == ws), spgeom2 = spdf, byid=TRUE))
     # List of neighbors
     ws_neighbors_spdf <- subset(spdf, Distance != 0 & Distance <= distance)
@@ -153,7 +185,7 @@ ws_distance <- function(spdf, ws, distance) {
             spTransform(CRSLatLon)
         # List of neighbors
         neig_stid <- ws_neighbors_spdf@data$stid
-        neig_data <- ws_neighbors_spdf@data
+        neig_data <- subset(spdf, Distance <= distance)@data
     } else {
         ws_lines <- neig_stid <- neig_data <- NULL
     }
@@ -166,29 +198,57 @@ ws_distance <- function(spdf, ws, distance) {
     ))
 }
 
+# ws_$neig_data
+ws_table <- function(map, ws, range_min = '2000-01-01', range_max = '2000-12-31', data_solar = data_solar_train) {
+
+    ws_stid <- c(map$id, ws$neig_stid)
+    
+    data_production <- data_solar %>%
+        select(all_of(c(ws_stid, 'Year_Month', 'Date2'))) %>% 
+        filter(between(Date2, as.Date(range_min), as.Date(range_max))) %>%
+        pivot_longer(cols = all_of(ws_stid), names_to = 'WeatherStation', values_to = 'Value') %>%
+        group_by(Year_Month, WeatherStation) %>% 
+        summarise(Value = round(sum(Value)/1e6, 0)) %>% 
+        pivot_wider(names_from = Year_Month, values_from = 'Value')
+
+    data_out <- ws$neig_data %>%
+        select(stid, elev, Distance) %>% 
+        mutate(Distance = Distance/1e3) %>% 
+        mutate_at(vars('elev', 'Distance'), round) %>% 
+        left_join(data_production, by = c('stid' = 'WeatherStation'), suffix = c("_Station", "_Production")) %>% 
+        # arrange(Distance) %>% 
+        rename('Weather Station' = stid, 'Elevation [m]' = elev, 'Distance [km]' = Distance)
+    
+    return(data_out)
+}
+
+
 ## App ----
 
 ## UI ----
-# Define UI for application that draws a histogram
 ui <- fluidPage(
     navbarPage("Weather stations", id = "nav",
     tabPanel("Map",
             tags$head(includeCSS("styles.css")),
-            div(class = "outer", 
-            leafletOutput("map", width = "100%", height = "50%"),
-            absolutePanel(id = "controls", class = "panel panel-default", 
-                          top = 60, right = 20, width = 330, fixed = TRUE, draggable = TRUE, bottom = "auto", height = "auto", left = "auto",
-                          sliderInput(inputId = "distance", label = "Distance [km]", min = 10, max = 500, value = 100, step = 10, ticks = FALSE)),
-            DT::dataTableOutput("neighbors_table"),
+            div(class = "map_uppper", 
+                leafletOutput(outputId = "map", width = "100%", height = "100%"),
+                absolutePanel(id = "controls", class = "panel panel-default", 
+                              top = 60, right = 20, width = 330, fixed = TRUE, draggable = TRUE, bottom = "auto", height = "auto", left = "auto",
+                              sliderInput(inputId = "distance", label = "Distance [km]", min = 10, max = 500, value = 100, step = 10, ticks = FALSE))
+            ),
+            div(class = "neighbors_table", 
+                dateRangeInput(inputId = 'date_range', label = 'Date range', min = '1994-01-01', max = '2007-12-31', start = '2007-01-01', end = '2007-12-31'),
+                DT::dataTableOutput(outputId = "neighbors_table"),
+            ),
+            div(class = "neighbors_plot", 
+                plotOutput("neighbors_plot", height = '100%'),
+            ),
             tags$div(id="cite", 'IE, GMBD, Intake 2020, Group E')
-        )
     ),
     tabPanel("Data")
 ))
 
-
 ## Server ----
-# Create the server
 server <- function( input, output, session ){
     
     # First draw
@@ -205,11 +265,11 @@ server <- function( input, output, session ){
                 lng = ~elon, lat = ~nlat,
                 intensity = ~ValueMean,
                 layerId = 'Heat',
-                blur = 90, max = 1, radius = 60, minOpacity = 0.5) %>% 
-            leafpop::addPopupGraphs(
-                data_plot$plots,
-                group = 'data_solar', #Has to be the same group as 'addCircleMarkers'
-                width = 500, height = 400)
+                blur = 90, max = 1, radius = 60, minOpacity = 0.5)
+            # leafpop::addPopupGraphs(
+            #     data_plot$plots,
+            #     group = 'data_solar', #Has to be the same group as 'addCircleMarkers'
+            #     width = 500, height = 400)
     }) 
 
     # Check events over the map
@@ -230,7 +290,9 @@ server <- function( input, output, session ){
                         opacity = 0.5,
                         group = 'lines')
                 # Table with the list of neighbors
-                output$neighbors_table <- DT::renderDataTable(ws_$neig_data, rownames = FALSE, width = 0.9)
+                output$neighbors_table <- DT::renderDataTable(ws_table(map_, ws_, input$date_range[1], input$date_range[2]), rownames = FALSE, width = 0.9)
+                # Plot
+                output$neighbors_plot <- renderPlot(plot_right_div(map_$id, ws_$neig_stid))
             }
         }
     })
