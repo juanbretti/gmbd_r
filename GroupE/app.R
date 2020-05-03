@@ -11,7 +11,6 @@ library(shiny)
 # Visualization
 library(ggplot2)
 library(ggpubr)
-library(ggpubr)
 library(PerformanceAnalytics)
 library(corrplot)
 
@@ -76,23 +75,29 @@ weatherstation_plot <- function(data){
     p_year <- data %>%
         ggplot(aes(x = Year, y = Value/1e6, group = Year)) +
         geom_boxplot() +
-        labs(x = 'Year', y = 'Production in million')
+        labs(x = 'Year', y = 'Production in million') +
+        ggpubr::rotate_x_text()
 
     p_month <- data %>%
         ggplot(aes(x = Month, y = Value/1e6)) +
         geom_boxplot() +
-        labs(x = 'Month', y = '')
+        labs(x = 'Month', y = '') +
+        ggpubr::rotate_x_text()
 
     p_Day_Of_Week <- data %>%
-        ggplot(aes(x = Day_Of_Week, y = Value/1e6)) +
+        ggplot(aes(x = Day_Of_Week, y = Value/1e6, fill = Weekend)) +
         geom_boxplot() +
-        labs(x = 'Day of the week', y = '')
+        labs(x = 'Day of the week', y = '') +
+        theme(legend.position = "none") +
+        scale_fill_manual(values=c("gray80", "white")) +
+        ggpubr::rotate_x_text()
 
     plot <- ggarrange(
         p_all,
         ggarrange(p_year, p_month, p_Day_Of_Week, ncol = 3),
         nrow = 2
     )
+    plot <- annotate_figure(plot, top = text_grob(unique(data$WeatherStation), face = "bold", size = 14))
     
     return(plot)
 }
@@ -101,15 +106,16 @@ weatherstation_plot <- function(data){
 # data_plot <- data_solar_train %>%
 #     dplyr::select(all_of(c(data_solar_col_dates, data_solar_col_produ))) %>%
 #     pivot_longer(cols = all_of(data_solar_col_produ), names_to = 'WeatherStation', values_to = 'Value') %>%
-#     # filter(WeatherStation %in% principal_weather_station[1:top_]) %>%
+#     # filter(WeatherStation %in% data_solar_col_produ[1:2]) %>%
 #     group_by(WeatherStation) %>%
 #     do(
 #         plots = weatherstation_plot(.)
 #     )
+# data_plot[[2]]
 
 # Save and load the plots, to improve speed of App starting
 # saveRDS(data_plot, file.path('GroupE', 'storage', 'data_plot.rds'))
-data_plot <- readRDS(file.path('storage', 'data_plot.rds'))
+# data_plot <- readRDS(file.path('storage', 'data_plot.rds'))
 
 # Creating the spatial dataset ----
 #CRS
@@ -146,37 +152,42 @@ ws_distance <- function(spdf, ws, distance) {
         ws_lines <- SpatialLines(ws_lines, proj4string = CRSProj) %>% 
             spTransform(CRSLatLon)
         # List of neighbors
-        ws_neighbors <- ws_neighbors_spdf@data$stid
+        neig_stid <- ws_neighbors_spdf@data$stid
+        neig_data <- ws_neighbors_spdf@data
     } else {
-        ws_lines <- ws_neighbors <- NULL
+        ws_lines <- neig_stid <- neig_data <- NULL
     }
     
     return(list(
         neig_number = ws_number,
         lines = ws_lines,
-        neighbors = ws_neighbors
+        neig_stid = neig_stid,
+        neig_data = neig_data
     ))
 }
 
 ## App ----
 
+## UI ----
 # Define UI for application that draws a histogram
 ui <- fluidPage(
     navbarPage("Weather stations", id = "nav",
     tabPanel("Map",
-        div(class = "outer", 
             tags$head(includeCSS("styles.css")),
-            leafletOutput("map", width = "100%", height = "100%"),
+            div(class = "outer", 
+            leafletOutput("map", width = "100%", height = "50%"),
             absolutePanel(id = "controls", class = "panel panel-default", 
                           top = 60, right = 20, width = 330, fixed = TRUE, draggable = TRUE, bottom = "auto", height = "auto", left = "auto",
-                          sliderInput(inputId = "distance", label = "Distance", min = 10e3, max = 500e3, value = 100e3, step = 10e3, ticks = FALSE),
-            ),
-            tags$div(id="cite", 'GMBD, Intake 2020, Group E')
+                          sliderInput(inputId = "distance", label = "Distance [km]", min = 10, max = 500, value = 100, step = 10, ticks = FALSE)),
+            DT::dataTableOutput("neighbors_table"),
+            tags$div(id="cite", 'IE, GMBD, Intake 2020, Group E')
         )
     ),
     tabPanel("Data")
 ))
 
+
+## Server ----
 # Create the server
 server <- function( input, output, session ){
     
@@ -194,25 +205,53 @@ server <- function( input, output, session ){
                 lng = ~elon, lat = ~nlat,
                 intensity = ~ValueMean,
                 layerId = 'Heat',
-                blur = 90, max = 1, radius = 60, minOpacity = 0.5) %>% 
-            leafpop::addPopupGraphs(
-                data_plot$plots,
-                group = 'data_solar',
-                width = 300, height = 400)
+                blur = 90, max = 1, radius = 60, minOpacity = 0.5)
+            # leafpop::addPopupGraphs(
+            #     data_plot$plots,
+            #     group = 'data_solar',
+            #     width = 300, height = 400)
     }) 
 
-    # After a click
-    observeEvent(paste(input$map_marker_click, input$distance), ignoreNULL = TRUE, ignoreInit = TRUE, {
-        ws_ <- ws_distance(WeatherStation_point, input$map_marker_click$id, input$distance)
-        if (ws_$neig_number>0) {
+    # Check events over the map
+    observeEvent(c(input$map_marker_click, input$distance), ignoreNULL = FALSE, ignoreInit = TRUE, {
+        map_ <- input$map_marker_click
+        dist_ <- input$distance
+        # If there is any input
+        if (!is.null(map_) & !is.null(dist_)) {
+            # Calculate neighbors
+            ws_ <- ws_distance(WeatherStation_point, map_$id, dist_*1e3)
+            # Plot the lines, only if there are neighbors
+            if (ws_$neig_number>0) {
+                leaflet::leafletProxy(mapId = "map") %>%
+                    clearGroup('lines') %>% 
+                    clearGroup('DT_selected') %>% 
+                    addPolygons(
+                        data = ws_$lines,
+                        opacity = 0.5,
+                        group = 'lines')
+                # Table with the list of neighbors
+                output$neighbors_table <- DT::renderDataTable(ws_$neig_data, rownames = FALSE, width = 0.9)
+            }
+        }
+    })
+    
+    # Check events over the Data Table
+    observeEvent(input$neighbors_table_rows_selected, ignoreNULL = FALSE, ignoreInit = TRUE, {
+        map_ <- input$map_marker_click
+        dist_ <- input$distance
+        row_ <- input$neighbors_table_rows_selected
+        if (!is.null(row_)) {
+            ws_ <- ws_distance(WeatherStation_point, map_$id, dist_*1e3)
             leaflet::leafletProxy(mapId = "map") %>%
-                clearGroup('lines') %>% 
-                addPolygons(
-                    data = ws_$lines,
-                    opacity = 0.5,
-                    layerId = as.character(1:ws_$neig_number),
-                    group = 'lines'
-                )
+                clearGroup('DT_selected') %>% 
+                addCircleMarkers(
+                    lng=ws_$neig_data$elon[row_], lat=ws_$neig_data$nlat[row_],
+                    label = ws_$neig_data$stid[row_],
+                    color = 'red',
+                    group = 'DT_selected')
+        } else {
+            leaflet::leafletProxy(mapId = "map") %>%
+                clearGroup('DT_selected')
         }
     })
 } 
