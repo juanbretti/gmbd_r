@@ -115,7 +115,7 @@ weatherstation_plot <- function(data){
 
 # Save and load the plots, to improve speed of App starting
 # saveRDS(data_plot, file.path('GroupE', 'storage', 'data_plot.rds'))
-# data_plot <- readRDS(file.path('storage', 'data_plot.rds'))
+data_plot <- readRDS(file.path('storage', 'data_plot.rds'))
 
 # Creating the spatial dataset ----
 #CRS
@@ -205,11 +205,11 @@ server <- function( input, output, session ){
                 lng = ~elon, lat = ~nlat,
                 intensity = ~ValueMean,
                 layerId = 'Heat',
-                blur = 90, max = 1, radius = 60, minOpacity = 0.5)
-            # leafpop::addPopupGraphs(
-            #     data_plot$plots,
-            #     group = 'data_solar',
-            #     width = 300, height = 400)
+                blur = 90, max = 1, radius = 60, minOpacity = 0.5) %>% 
+            leafpop::addPopupGraphs(
+                data_plot$plots,
+                group = 'data_solar', #Has to be the same group as 'addCircleMarkers'
+                width = 500, height = 400)
     }) 
 
     # Check events over the map
