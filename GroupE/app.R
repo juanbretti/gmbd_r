@@ -4,27 +4,21 @@
 library(tidyverse)
 library(data.table)
 library(lubridate)
-
 # Shiny
 library(shiny)
-
 # Visualization
 library(ggplot2)
 library(ggpubr)
-library(PerformanceAnalytics)
-library(corrplot)
-
 # Mapping
 library(leaflet)
 library(leaflet.extras)
 library(leafpop)
-library(gdtools)
-
 # Spatial
-library(sf)
 library(sp)
 library(rgdal)
 library(rgeos)
+# library(gdtools)
+# library(sf)
 
 ## Load data ----
 
