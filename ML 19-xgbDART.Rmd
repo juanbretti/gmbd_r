@@ -26,7 +26,7 @@ library(skimr)
 library(ggplot2)
 
 # Machine learning
-library(e1071)
+library(xgboost)
 library(caret)
 
 # Calculations
@@ -121,7 +121,7 @@ data_solar_add_train <- data_solar_add_train_[1:nrow_train, ]
 data_solar_add_val <- data_solar_add_train_[(nrow_train+1):(nrow_train+nrow_val), ]
 data_solar_add_test <- data_solar_add_train_[(nrow_train+nrow_val+1):nrow(data_solar_add_train_), ]
 
-rm(list=c('nrow_train', 'nrow_val', 'nrow_test', 'data_solar_add_train_', 'data_solar_add', 'data_add_col_dates'))
+rm(list=c('nrow_train', 'nrow_val', 'nrow_test', 'data_solar_add_train_', 'data_add_col_dates'))
 ```
 
 # Function to add lag to the datasets
@@ -146,34 +146,34 @@ add_lag <- function(data, n_lag=10, n_times=5, col = 'WeatherStation') {
 Using 'filterVarImp'
 
 ```{r}
-cl<-makeCluster(detectCores())
-registerDoParallel(cl)
-
-select_important<-function(dat, y, n_vars=ncol(dat)){
-  varimp <- filterVarImp(x = dat, y=y, nonpara=TRUE)
-  varimp <- data.table(variable=rownames(varimp),imp=varimp[, 1])
-  varimp <- varimp[order(-imp)]
-  selected <- varimp$variable[1:n_vars]
-  return(selected)
-}
-
-time_importance <- system.time({
-data_col_importance <- foreach (x = data_solar_col_produ, .errorhandling="remove", .packages=(.packages())) %dopar% {
-                                    data <- data_solar_add_train %>% 
-                                      select(all_of(c(x, data_solar_col_predi, data_add_col))) %>% 
-                                      rename(WeatherStation = all_of(x))
-                                    data <- add_lag(data, n_lag=30, n_times=5, col='WeatherStation')
-  
-                                    out <- select_important(dat=select(data$data, all_of(c(data_solar_col_predi, data_add_col, data$columns))),
-                                                     y = data$data$WeatherStation)
-                                    return(out)
-                                    }
-})
-names(data_col_importance) <- data_solar_col_produ
-
-# data_col_importance[2]
-print(time_importance)
-stopCluster(cl)
+# cl<-makeCluster(detectCores())
+# registerDoParallel(cl)
+# 
+# select_important<-function(dat, y, n_vars=ncol(dat)){
+#   varimp <- filterVarImp(x = dat, y=y, nonpara=TRUE)
+#   varimp <- data.table(variable=rownames(varimp),imp=varimp[, 1])
+#   varimp <- varimp[order(-imp)]
+#   selected <- varimp$variable[1:n_vars]
+#   return(selected)
+# }
+# 
+# time_importance <- system.time({
+# data_col_importance <- foreach (x = data_solar_col_produ, .errorhandling="remove", .packages=(.packages())) %dopar% {
+#                                     data <- data_solar_add_train %>% 
+#                                       select(all_of(c(x, data_solar_col_predi, data_add_col))) %>% 
+#                                       rename(WeatherStation = all_of(x))
+#                                     data <- add_lag(data, n_lag=30, n_times=5, col='WeatherStation')
+#   
+#                                     out <- select_important(dat=select(data$data, all_of(c(data_solar_col_predi, data_add_col, data$columns))),
+#                                                      y = data$data$WeatherStation)
+#                                     return(out)
+#                                     }
+# })
+# names(data_col_importance) <- data_solar_col_produ
+# 
+# # data_col_importance[2]
+# print(time_importance)
+# stopCluster(cl)
 
 # saveRDS(data_col_importance, file.path('storage', 'data_col_importance3_lag.rds'))
 data_col_importance <- readRDS(file.path('storage', 'data_col_importance3_lag.rds'))
@@ -191,10 +191,12 @@ https://github.com/topepo/caret/blob/master/models/files/xgbLinear.R
 https://github.com/topepo/caret/blob/master/models/files/xgbDART.R
 
 Others
+https://xgboost.readthedocs.io/en/latest/parameter.html
 https://github.com/lucaseustaquio/ams-2013-2014-solar-energy/blob/master/ams-2013-2014-R/
 https://stackoverflow.com/questions/30233144/time-series-splitting-data-using-the-timeslice-method
 https://robjhyndman.com/hyndsight/tscv/
 http://www.quintuitive.com/2016/09/25/better-model-selection-evolving-models/
+https://machinelearningmastery.com/pre-process-your-dataset-in-r/
 
 ```{r}
 model_result <- function(model_train, data_train, data_val) {
@@ -228,7 +230,7 @@ model_result <- function(model_train, data_train, data_val) {
 # WeatherStation <- 'ACME'
 # col_importance_number <- 30
 
-model_train <- function(WeatherStation, col_importance_number = 40) {
+model_train <- function(WeatherStation, col_importance_number = 80) {
   
   # Columns to use, depending on the 'col_importance_number'
   col_importance <- data_col_importance[[WeatherStation]][1:col_importance_number]
@@ -246,37 +248,31 @@ model_train <- function(WeatherStation, col_importance_number = 40) {
     select('WeatherStation', all_of(col_importance))
 
   # Control
-  timeControl <- trainControl(method = "timeslice",
-                              initialWindow = 365*7,
-                              horizon = 365*2,
-                              fixedWindow = TRUE,
-                              skip = 365*4,
-                              allowParallel = TRUE)
+  trainControl <- trainControl(allowParallel = TRUE)
   
   # xgbDART
-  len <- 5
-  tuneControl <- expand.grid(nrounds = floor((1:len) * 50),
-                   max_depth = seq(1, len),
-                   eta = c(0.3, 0.4), # "Usually" one should be the lowest possible
+  tuneControl <- expand.grid(
+                   nrounds = 50,
+                   max_depth = 5,
+                   eta = 0.035, #0.035
                    gamma = 0,
-                   subsample = seq(.5, 1, length = len),
+                   subsample = c(0.4, 0.6),
                    colsample_bytree = c(0.6, 0.8),
-                   rate_drop = c(0.01, 0.50),
-                   skip_drop = c(0.05, 0.95),
-                   min_child_weight = c(1))
+                   rate_drop = c(0.01, 0.30),
+                   skip_drop = 0.95,
+                   min_child_weight = 1)
   
   # Model
   train_time <- system.time({
+    set.seed(42)
     model <- caret::train(WeatherStation ~ .,
                       data = data_train,
                       method = "xgbDART",
                       metric = "RMSE",
                       verbose = TRUE,
                       tuneGrid = tuneControl,
-                      # tuneLength = 5,
-                      trControl = timeControl,
+                      trControl = trainControl,
                       preProcess = c('center', 'scale'))
-
   })
 
   # Results
@@ -305,8 +301,8 @@ names(model_trained) <- data_solar_col_produ
 
 stopCluster(cl)
 
-# saveRDS(model_trained, file.path('storage', 'model_trained18_xgbDART.rds'))
-model_trained <- readRDS(file.path('storage', 'model_trained18_xgbDART.rds'))
+# saveRDS(model_trained, file.path('storage', 'model_trained19_xgbDART.rds'))
+model_trained <- readRDS(file.path('storage', 'model_trained19_xgbDART.rds'))
 
 # rm(list=c('cl', 'model_train', 'model_result'))
 ```
@@ -365,7 +361,7 @@ model_result <- function(model_train, model_train_val, data_train, data_val, dat
 # col_importance_number = 40
 # str(trained_$model$finalModel)
 
-model_apply <- function(WeatherStation, col_importance_number = 40) {
+model_apply <- function(WeatherStation, col_importance_number = 80) {
   
   # Final model trained
   trained_ <- model_trained[[WeatherStation]]
@@ -395,12 +391,7 @@ model_apply <- function(WeatherStation, col_importance_number = 40) {
     select('WeatherStation', all_of(col_importance))
   
   # Control
-  timeControl <- trainControl(method = "timeslice",
-                              initialWindow = 365*5,
-                              horizon = 365*1,
-                              fixedWindow = TRUE,
-                              skip = 365*3,
-                              allowParallel = TRUE)
+  trainControl <- trainControl(allowParallel = TRUE)
 
   # nrounds, max_depth, eta, gamma, subsample, colsample_bytree, rate_drop, skip_drop, min_child_weight
   # Final coefficients
@@ -419,12 +410,13 @@ model_apply <- function(WeatherStation, col_importance_number = 40) {
   
   # Model
   train_time <- system.time({
+    set.seed(42)
     model <- caret::train(WeatherStation ~ .,
                       data = data_train_val,
                       method = "xgbDART",
                       metric = "RMSE",
                       tuneGrid = model_coef,
-                      trControl = timeControl,
+                      trControl = trainControl,
                       preProcess = c('center', 'scale'))
   })
   
@@ -453,8 +445,8 @@ names(model_applied) <- data_solar_col_produ
 
 stopCluster(cl)
 
-saveRDS(model_applied, file.path('storage', 'model_applied17_xgb.rds'))
-# model_applied <- readRDS(file.path('storage', 'model_applied17_xgb.rds'))
+# saveRDS(model_applied, file.path('storage', 'model_applied19_xgb.rds'))
+model_applied <- readRDS(file.path('storage', 'model_applied19_xgb.rds'))
 
 rm(list=c('cl', 'model_apply', 'model_result'))
 ```
