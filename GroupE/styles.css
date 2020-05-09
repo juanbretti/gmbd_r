@@ -21,7 +21,7 @@ div.map_uppper {
     font-size: 12px;
 }
 
-div.neighbors_table {
+div.neighbors_table_wide {
     position: fixed;
     top: 50%;
     left: 0;

@@ -13,6 +13,7 @@ library(ggpubr)
 library(leaflet)
 library(leaflet.extras)
 library(leafpop)
+library(htmltools)
 # Spatial
 library(sp)
 library(rgdal)
@@ -58,6 +59,13 @@ data_position <- data_solar_train %>%
     group_by(WeatherStation) %>%
     summarise(ValueMean = tail(Value, 1)) %>% 
     left_join(data_station, by = c('WeatherStation' = 'stid'))
+
+# Labels for the map ----
+data_position$Label <- 
+    paste('<strong>', data_position$WeatherStation, '</strong>', '<br/>', 
+          'Elevation:', round(data_position$elon, 0), 'm', '<br/>',
+          'Last production:', round(data_position$ValueMean/1e6, 1), 'million') %>% 
+    lapply(HTML)
 
 # Plots for addPopupGraphs ----
 # https://www.datanovia.com/en/lessons/combine-multiple-ggplots-into-a-figure/
@@ -114,8 +122,8 @@ data_plot <- readRDS(file.path('storage', 'data_plot.rds'))
 
 # Plot for the right div
 
-plot_right_div <- function(ws_clicked, ws_neig, data = data_solar_train, head_ = 5){
-
+ws_listing <- function(ws_clicked, ws_neig, head_ = 5){
+    
     # To have a faster plot, limit the number of curves
     ws_ <- c(ws_clicked, head(ws_neig, head_))
     if(length(ws_neig) <= head_) {
@@ -123,6 +131,20 @@ plot_right_div <- function(ws_clicked, ws_neig, data = data_solar_train, head_ =
     } else {
         text_ <- paste0(paste(ws_, collapse = ', '), '...')
     }
+    
+    return(list(
+        ws = ws_, 
+        text = text_
+    ))
+    
+}
+    
+
+plot_right_div <- function(ws_clicked, ws_neig, data = data_solar_train){
+
+    ws_listing_ <- ws_listing(ws_clicked, ws_neig)
+    ws_ <- ws_listing_$ws
+    text_ <- ws_listing_$text
     
     p_all <- data %>%
         pivot_longer(cols = all_of(ws_), names_to = 'WeatherStation', values_to = 'Value') %>% 
@@ -193,7 +215,7 @@ ws_distance <- function(spdf, ws, distance) {
 }
 
 # ws_$neig_data
-ws_table <- function(map, ws, range_min = '2000-01-01', range_max = '2000-12-31', data_solar = data_solar_train) {
+ws_table <- function(map, ws, range_min, range_max, data_solar = data_solar_train) {
 
     ws_stid <- c(map$id, ws$neig_stid)
     
@@ -205,7 +227,7 @@ ws_table <- function(map, ws, range_min = '2000-01-01', range_max = '2000-12-31'
         summarise(Value = round(sum(Value)/1e6, 0)) %>% 
         pivot_wider(names_from = Year_Month, values_from = 'Value')
 
-    data_out <- ws$neig_data %>%
+    data_wide <- ws$neig_data %>%
         select(stid, elev, Distance) %>% 
         mutate(Distance = Distance/1e3) %>% 
         mutate_at(vars('elev', 'Distance'), round) %>% 
@@ -213,7 +235,15 @@ ws_table <- function(map, ws, range_min = '2000-01-01', range_max = '2000-12-31'
         # arrange(Distance) %>% 
         rename('Weather Station' = stid, 'Elevation [m]' = elev, 'Distance [km]' = Distance)
     
-    return(data_out)
+    data_long <- data_solar %>%
+        select(all_of(c('Date2', ws_stid))) %>% 
+        rename(Date = Date2) %>% 
+        filter(between(Date, as.Date(range_min), as.Date(range_max)))
+
+    return(list(
+        data_wide = data_wide,
+        data_long = data_long
+    ))
 }
 
 
@@ -230,16 +260,20 @@ ui <- fluidPage(
                               top = 60, right = 20, width = 330, fixed = TRUE, draggable = TRUE, bottom = "auto", height = "auto", left = "auto",
                               sliderInput(inputId = "distance", label = "Distance [km]", min = 10, max = 500, value = 100, step = 10, ticks = FALSE))
             ),
-            div(class = "neighbors_table", 
-                dateRangeInput(inputId = 'date_range', label = 'Date range', min = '1994-01-01', max = '2007-12-31', start = '2007-01-01', end = '2007-12-31'),
-                DT::dataTableOutput(outputId = "neighbors_table"),
+            div(class = "neighbors_table_wide", 
+                dateRangeInput(inputId = 'date_range', label = 'Filter by date', min = min(data_solar$Date2), max = max(data_solar$Date2), start = '2007-01-01', end = '2007-12-31'),
+                DT::dataTableOutput(outputId = "neighbors_table_wide"),
             ),
             div(class = "neighbors_plot", 
                 plotOutput("neighbors_plot", height = '100%'),
             ),
             tags$div(id="cite", 'IE, GMBD, Intake 2020, Group E')
     ),
-    tabPanel("Data")
+    tabPanel("Data",
+             htmlOutput('selection_text'),
+             br(),
+             DT::dataTableOutput(outputId = "neighbors_table_long")
+    )
 ))
 
 ## Server ----
@@ -252,7 +286,7 @@ server <- function( input, output, session ){
             addCircleMarkers(
                 lng=~elon, lat=~nlat,
                 radius = ~ValueMean/1e6, 
-                label = ~WeatherStation,
+                label = ~Label,
                 layerId = ~WeatherStation,
                 group = 'data_solar') %>% 
             addHeatmap(
@@ -284,18 +318,24 @@ server <- function( input, output, session ){
                         opacity = 0.5,
                         group = 'lines')
                 # Table with the list of neighbors
-                output$neighbors_table <- DT::renderDataTable(ws_table(map_, ws_, input$date_range[1], input$date_range[2]), rownames = FALSE, width = 0.9)
+                output$neighbors_table_wide <- DT::renderDataTable(ws_table(map_, ws_, input$date_range[1], input$date_range[2])$data_wide, rownames = FALSE, width = 0.9)
+                output$neighbors_table_long <- DT::renderDataTable(ws_table(map_, ws_, input$date_range[1], input$date_range[2])$data_long, rownames = FALSE, width = 0.9, selection = 'none')
                 # Plot
                 output$neighbors_plot <- renderPlot(plot_right_div(map_$id, ws_$neig_stid))
             }
+            output$selection_text <- renderUI({
+                str1 <- paste('Listing', '<strong>', ws_listing(map_$id, ws_$neig_stid)$text, '</strong>', 'weather stations')
+                str2 <- paste('From', '<strong>', input$date_range[1], '</strong>', 'to', '<strong>', input$date_range[2], '</strong>')
+                HTML(paste(str1, str2, sep = '<br/>'))
+            })
         }
     })
     
     # Check events over the Data Table
-    observeEvent(input$neighbors_table_rows_selected, ignoreNULL = FALSE, ignoreInit = TRUE, {
+    observeEvent(input$neighbors_table_wide_rows_selected, ignoreNULL = FALSE, ignoreInit = TRUE, {
         map_ <- input$map_marker_click
         dist_ <- input$distance
-        row_ <- input$neighbors_table_rows_selected
+        row_ <- input$neighbors_table_wide_rows_selected
         if (!is.null(row_)) {
             ws_ <- ws_distance(WeatherStation_point, map_$id, dist_*1e3)
             leaflet::leafletProxy(mapId = "map") %>%
