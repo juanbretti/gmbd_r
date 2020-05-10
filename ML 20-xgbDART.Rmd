@@ -177,7 +177,7 @@ Using 'filterVarImp'
 
 # saveRDS(data_col_importance, file.path('storage', 'data_col_importance3_lag.rds'))
 data_col_importance <- readRDS(file.path('storage', 'data_col_importance3_lag.rds'))
-# data_col_importance[10]
+# data_col_importance[1]
 rm(list=c('cl', 'select_important', 'time_importance', 'data'))
 ```
 

@@ -49,7 +49,7 @@ library(outliers)
 
 ###### 2 Source From R script
 
-```{r, eval=TRUE, results='hide', include=FALSE}
+```{r source_code, eval=TRUE, results='hide', include=FALSE}
 source('EDA 1.R', echo = FALSE, print.eval = FALSE)
 ```
 
@@ -79,6 +79,7 @@ criteria_variables(data_add)
 ##### 1.3 Outliers check
 
 Based on:
+
 https://www.kaggle.com/rtatman/data-cleaning-challenge-outliers
 
 https://cran.r-project.org/web/packages/outliers/outliers.pdf
@@ -324,7 +325,7 @@ corrplot(cor_, type="upper", order="hclust", p.mat = p.mat, sig.level = 0.01, in
 
 #### 3 PCA of additional dataset
 
-#### Plot density and boxplots
+#### 3.1 Plot density and boxplots
 
 ```{r}
 data <- data_add_pca %>%
