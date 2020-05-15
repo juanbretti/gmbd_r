@@ -48,7 +48,7 @@ library(doParallel)
 num_clusters <- 8
 num_lag <- 30
 num_times <- 5
-num_col_importance <- 80
+num_col_importance <- 30
 ```
 
 # Load data
@@ -361,9 +361,12 @@ model_result <- function(model_train, data_train, data_val) {
 }
 
 # Define grid seach
-cost_values <- 10^seq(from = -2, to = 2, length.out = 12)
-epsilon_values <- 10^seq(from = -2, to = 0, length.out = 12)
-gamma_values <- 10^seq(from = -3, to = 1, length.out = 12)
+cost_values <- 10^seq(from = -2, to = 1, length.out = 5)
+epsilon_values <- 10^seq(from = -2, to = 0, length.out = 5)
+gamma_values <- 10^seq(from = -3, to = -1, length.out = 5)
+
+# cluster = 1
+# cost=epsilon=gamma=1
 
 model_train <- function(cluster, num_col_importance, num_lag, num_times) {
   timestamp()
@@ -386,11 +389,12 @@ model_train <- function(cluster, num_col_importance, num_lag, num_times) {
   pre_ <- preProcess(x = select(data_train, -Cluster), method = c('center', 'scale'))
   data_train <- predict(object = pre_, newdata = data_train)
   data_val <- predict(object = pre_, newdata = data_val)
-  
+
   # Call the training
   trained <- foreach(cost = cost_values, .combine = rbind) %:%
     foreach(epsilon = epsilon_values, .combine = rbind) %:%
       foreach(gamma = gamma_values, .combine = rbind, .packages=(.packages()), .export=ls(envir=globalenv())) %dopar% {
+        
         # Model training
         model <- svm(Cluster ~ ., data = data_train, cost = cost, epsilon = epsilon, gamma = gamma)
         # Results
@@ -432,10 +436,13 @@ model_best <- lapply(1:num_clusters, function(x) {model_trained[[cluster_name(x)
 })
 names(model_best) <- cluster_name(1:num_clusters)
 
-# str(model_trained)
-# saveRDS(model_trained, file.path('storage', 'model_trained_23_svm.rds'))
-model_trained <- readRDS(file.path('storage', 'model_trained_23_svm.rds'))
+# sapply(1:num_clusters, function(x) model_best[[cluster_name(x)]])
 
+# str(model_trained)
+saveRDS(model_trained, file.path('storage', 'model_trained_25_svm.rds'))
+# model_trained <- readRDS(file.path('storage', 'model_trained_25_svm.rds'))
+
+rm(model_trained)
 # rm(list=c('cl', 'model_train', 'model_result'))
 ```
 
@@ -544,8 +551,8 @@ names(model_applied) <- cluster_name(1:num_clusters)
 
 stopCluster(cl)
 
-# saveRDS(model_applied, file.path('storage', 'model_applied_23_svm.rds'))
-model_applied <- readRDS(file.path('storage', 'model_applied_23_svm.rds'))
+saveRDS(model_applied, file.path('storage', 'model_applied_25_svm.rds'))
+# model_applied <- readRDS(file.path('storage', 'model_applied_25_svm.rds'))
 
 # rm(list=c('cl', 'model_apply', 'model_result'))
 ```
@@ -600,8 +607,8 @@ out <- final %>%
   dplyr::select('Date', all_of(data_solar_col_produ)) %>% 
   dplyr::slice(5114:n())
 
-# saveRDS(out, file.path('storage', 'out_23_xgb.rds'))
-out <- readRDS(file.path('storage', 'out_23_xgb.rds'))
+saveRDS(out, file.path('storage', 'out_25_xgb.rds'))
+# out <- readRDS(file.path('storage', 'out_25_xgb.rds'))
 
 write.table(x = out, file = file.path('storage', 'out.csv'), sep = ',', dec = '.', row.names = FALSE, quote = FALSE)
 # 
