@@ -603,6 +603,7 @@ final <- data_solar_add['Date']
   }
 })
 
+
 out <- final %>% 
   dplyr::select('Date', all_of(data_solar_col_produ)) %>% 
   dplyr::slice(5114:n())
