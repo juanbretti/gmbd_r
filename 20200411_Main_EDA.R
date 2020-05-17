@@ -469,8 +469,8 @@ p_boxplot <- ggplot(data = data, aes(x = Value/1e6)) +
         axis.ticks.y=element_blank()) +
   labs(x = 'Production in million', y = '')
 
-layout <- matrix(c(1,1,1,2),4,1, byrow=TRUE)
-p_distri_prod <- multiplot(p_histogram_density, p_boxplot, layout = layout)
+layout_2 <- matrix(c(1,1,1,2),4,1, byrow=TRUE)
+p_distri_prod <- multiplot(p_histogram_density, p_boxplot, layout = layout_2)
 
 # ################################ [9.2] FOR EACH WEATHER STATION AND PREDICTORS #####################################
 
@@ -632,8 +632,8 @@ p_mean_sd <- stats_ %>%
   geom_point(color = 'darkgreen') +
   labs(x = 'Mean', y = 'Standard Deviation')
 
-layout <- matrix(c(1,2,3,4,5,5),3,2, byrow=TRUE)
-p_additional <- multiplot(p_mean, p_median, p_sd, p_na, p_mean_sd, layout = layout)
+layout_3 <- matrix(c(1,2,3,4,5,5),3,2, byrow=TRUE)
+p_additional <- multiplot(p_mean, p_median, p_sd, p_na, p_mean_sd, layout = layout_3)
 
 # ##################################### [11.2] CORRELATION BETWEEN ADDITIONAL INFORMATION #####################################
 
