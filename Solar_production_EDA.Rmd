@@ -1,7 +1,7 @@
 ---
 title: "Solar Production EDA"
 author: "Group E"
-date: "4/25/2020"
+date: "5/17/2020"
 output: html_document
 ---
 
@@ -97,10 +97,8 @@ https://cran.r-project.org/web/packages/outliers/outliers.pdf
 
 ```{r}
 library(knitr)
-# solar_data_outlier_skim
-plot(solar_data_outlier_hist)
 
-#kable(solar_data_outlier_table)
+plot(solar_data_outlier_hist)
 
 ```
 > The data is normally distributed. There is only one row that could be considered outliers. 
@@ -146,12 +144,13 @@ glimpse(data_add)
 ```{r, eval=TRUE, echo=FALSE}
 multiplot(p_top, p_bottom)
 ```
+
 #### 2 Rank position change over time
 
 * We are interested to find out how does the production of one station changes over years
 
 * As demonstrated by the graph below, there are quite a lot of movements for every weather station. But for each one weather station, they typically won't move more than 5 ranking positions.
-+ This suggests variables apart from seasonality at play, which would move every station in the same direction.
+* This suggests variables apart from seasonality at play, which would move every station in the same direction.
 
 ```{r, echo=FALSE}
 p_rank
@@ -210,7 +209,7 @@ p_seasonality_top_5 <- lapply(principal_weather_station[1:top_], function(x) plo
 map_stations
 ```
 
-#### 2Heatmap - visualizes production volume
+#### 2 Heatmap - visualizes production volume
 ```{r}
 map_production
 ```
@@ -232,7 +231,7 @@ chart.Correlation(data, histogram=TRUE) #, pch=19
 
 #### 1 Of general production
 ```{r, echo=FALSE, message=FALSE}
-multiplot(p_histogram_density, p_boxplot, layout = layout)
+multiplot(p_histogram_density, p_boxplot, layout = layout_2)
 ```
 
 #### 2 Of each weather station 
@@ -255,10 +254,11 @@ ggplot(data = data, aes(x = Value/1e6)) +
         axis.text.y=element_blank(),
         axis.ticks.y=element_blank())
 ```
+
 #### 3 Of predictors 
 
 * Predictors are highly concentrated, the variances are very small
-```{r}
+```{r, echo=FALSE}
 data <- data_solar_train %>%
   dplyr::select(data_solar_col_predi) %>%
   pivot_longer(cols = all_of(data_solar_col_predi), names_to = 'PC', values_to = 'Value') %>%
@@ -302,8 +302,10 @@ data_solar_importance[1:top_]
 #### 1 Distribution of the descriptive stats
 
 ```{r, echo=FALSE}
-multiplot(p_mean, p_median, p_sd, p_na, p_mean_sd, layout = layout)
+multiplot(p_mean, p_median, p_sd, p_na, p_mean_sd, layout = layout_3)
 ```
+
+
 #### 2 Correlation in additional dataset
 
 ```{r, echo=FALSE}
@@ -316,7 +318,7 @@ corrplot(cor_, type="upper", order="hclust", p.mat = p.mat, sig.level = 0.01, in
 bind_cols(data_add[, ..data_add_col_dates], df4)
 ```
 ### Plot density and boxplots
-```{r}
+```{r, echo=FALSE}
 data <- data_add_pca %>%
   pivot_longer(cols = all_of(data_add_col_pca), names_to = 'PC', values_to = 'Value') %>%
   mutate(PC_ = factor(PC, levels = data_add_col_pca))
