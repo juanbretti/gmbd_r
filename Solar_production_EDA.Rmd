@@ -76,7 +76,7 @@ f_check_na(data_station)
 f_check_na(data_add)
 
 ```
-> Comment: There are no missing values in the solar_dataset and station dataset. There are 3.6% NAs in the additional_dataset. The missing values will be imputed.
+> Comment: There are no missing values in the solar_dataset and station dataset. `r f_check_na(data_add)` The missing values will be imputed.
 
 ##### 1.2 Constant Variables check
 ```{r, eval=FALSE}
@@ -85,7 +85,7 @@ criteria_variables(data_solar_test)
 criteria_variables(data_station)
 criteria_variables(data_add)
 ```
-> Comment: No constant variables have been found.
+> Comment: `r criteria_variables(data_solar_train)`.
 
 ##### 1.3 Outliers check
 
