@@ -2,18 +2,23 @@
 title: "Solar Production EDA"
 author: "Group E"
 date: "4/25/2020"
-output: html_document
+output:
+  html_document:
+    code_folding: hide
+    toc: true
+    toc_float:
+      collapsed: true
 ---
 
 ```{r setup, include=FALSE, eval=TRUE}
-knitr::opts_chunk$set(message = FALSE, echo=FALSE, warning=FALSE)
+knitr::opts_chunk$set(message = FALSE, echo=TRUE, warning=FALSE)
 ```
 
 This report contains the findings on Solar data, additional data and stations data. 
 
-## Preparation
+# Preparation
 
-###### 1 Load libraries
+## Load libraries and source data
 
 ```{r load_libraries}
 # General purpose
@@ -25,39 +30,31 @@ library(lubridate)
 library(skimr)
 
 # Visualization
-library(ggplot2)
-library(PerformanceAnalytics)
-library(corrplot)
 library(knitr)
+library(ggplot2)
+library(corrplot)
+library(PerformanceAnalytics)
 
 # Mapping
 library(leaflet)
 library(leaflet.extras)
 library(sf)
-#library(gdtools)
 
 # Calculations
 library(forecast)
 library(caret)
 library(outliers) 
-
-# library(mice)
-# library(foreach)
-# library(doParallel)
-# library(parallel)
 ```
 
-###### 2 Source From R script
-
-```{r source_code, eval=TRUE, results='hide', include=FALSE}
-source('EDA 1.R', echo = FALSE, print.eval = FALSE)
+```{r source_code, echo=FALSE, include=FALSE}
+source('EDA-1.R', echo = FALSE, print.eval = FALSE)
 ```
 
-## Overview: Data structure and content
+# Overview: Data structure and content
 
-##### 1 General overview
+## 1 General overview
 
-##### 1.1 NA check
+### 1.1 NA check
 
 ```{r}
 f_check_na(data_solar_train)
@@ -67,7 +64,8 @@ f_check_na(data_add)
 ```
 > Comment: There are no missing values in the solar_dataset and station dataset. There are 3.6% NAs in the additional_dataset. The missing values will be imputed.
 
-##### 1.2 Constant Variables check
+### 1.2 Constant Variables check
+
 ```{r}
 criteria_variables(data_solar_train)
 criteria_variables(data_solar_test)
@@ -76,7 +74,7 @@ criteria_variables(data_add)
 ```
 > Comment: No constant variables have been found.
 
-##### 1.3 Outliers check
+### 1.3 Outliers check
 
 Based on:
 
@@ -84,40 +82,40 @@ https://www.kaggle.com/rtatman/data-cleaning-challenge-outliers
 
 https://cran.r-project.org/web/packages/outliers/outliers.pdf
 
-##### 1.3.1 Outliers in Solar dataset
+#### 1.3.1 Outliers in Solar dataset
 
-```{r, eval=FALSE}
+```{r}
 # solar_data_outlier_skim
 # kable(solar_data_outlier_table)
-plot(solar_data_outlier_hist)
+hist(unlist(data_solar_produ_scores), main = 'Solar production scores', xlab = 'Normalized score')
 ```
 
 > The data is normally distributed. There is only one row that could be considered outliers. 
 
-####  2 Exploring the columns of Solar dataset 
+##  2 Exploring the columns of Solar dataset 
 
-##### 2.1 Descriptive statistics of the Training set
+### 2.1 Descriptive statistics of the Training set
 
 ```{r, eval=FALSE, echo=TRUE}
 skim(data_solar_train)
 glimpse(data_solar_train)
 ```
 
-##### 2.2 Descriptive statistics of the Testing set
+### 2.2 Descriptive statistics of the Testing set
 
 ```{r, eval=FALSE, echo=TRUE}
 skim(data_solar_test)
 glimpse(data_solar_test)
 ```
 
-##### 2.3 Descriptive statistics of the Stations dataset
+### 2.3 Descriptive statistics of the Stations dataset
 
 ```{r, eval=FALSE, echo=TRUE}
 skim(data_station)
 glimpse(data_station)
 ```
 
-##### 2.4 Descriptive statistics of Additional information dataset
+### 2.4 Descriptive statistics of Additional information dataset
 
 ```{r, eval=FALSE, echo=TRUE}
 skim(data_add)
@@ -126,7 +124,7 @@ glimpse(data_add)
 
 # Descriptive plots
 
-#### 1 Principal weather stations
+## 1 Principal weather stations
 
 * In this step, weather stations are sorted by their respective solar energy production volume, in descending order. Then, we create 2 plots, the first one shows top weather stations, the second shows the bottom weather stations. 
 
@@ -136,7 +134,7 @@ glimpse(data_add)
 principal_station_plot
 ```
 
-#### 2 Rank position change over time
+## 2 Rank position change over time
 
 * We are interested to find out how does the production of one station changes over years
 
@@ -147,7 +145,7 @@ principal_station_plot
 p_rank
 ```
 
-#### 3 Total production seasonality, trend and cyclical movements 
+## 3 Total production seasonality, trend and cyclical movements 
 
 Descriptive plot to show the production recorded in millions over different granularities of time.
 
@@ -158,7 +156,7 @@ Descriptive plot to show the production recorded in millions over different gran
 total_production_p
 ```
 
-#### 4 Dive into Seasonality
+## 4 Dive into Seasonality
 
 This section is based on https://towardsdatascience.com/forecasting-with-r-trends-and-seasonality-def24280e71f
 
@@ -170,7 +168,7 @@ This section is based on https://towardsdatascience.com/forecasting-with-r-trend
 plot(decompose(data2))
 ```
 
-#### 5 Visualizing the production timeseries of the top 5 stations
+## 5 Visualizing the production timeseries of the top 5 stations
 
 * Not suprisingly, all stations production trends follow the trend isolated in the graph above. 
 
@@ -192,23 +190,23 @@ data <- data_solar_train %>%
 p_seasonality_top_5 <- lapply(principal_weather_station[1:top_], function(x) plot(data[[x]]$trend, main = x, ylab = 'Value'))
 ```
 
-## Geolocalization
+# Geolocalization
 
-#### 1 Positions - Where are the stations located?
+## 1 Positions - Where are the stations located?
 
 ```{r}
 map_stations
 ```
 
-#### 2 Heatmap - visualizes production volume
+## 2 Heatmap - visualizes production volume
 
 ```{r}
 map_production
 ```
 
-## Correlations 
+# Correlations 
 
-#### 1 Top 5 stations vs first 10 principal components
+## 1 Top 5 stations vs first 10 principal components
 
 ```{r}
 top_ <- 5
@@ -220,15 +218,15 @@ data <- data_solar_train %>%
 chart.Correlation(data, histogram=TRUE) #, pch=19
 ```
 
-## Histograms, density kernel and boxplot
+# Histograms, density kernel and boxplot
 
-#### 1 Of general production
+## 1 Of general production
 
 ```{r}
 p_distri_prod
 ```
 
-#### 2 Of each weather station 
+## 2 Of each weather station 
 
 ```{r}
 data <- data_solar_train %>%
@@ -259,7 +257,7 @@ ggplot(data = data, aes(x = Value/1e6)) +
         axis.ticks.x=element_blank())
 ```
 
-#### 3 Of predictors 
+## 3 Of predictors 
 
 * Predictors are highly concentrated, the variances are very small
 
@@ -309,39 +307,26 @@ names(data_solar_importance) <- principal_weather_station[1:top_]
 data_solar_importance[1:top_]
 ```
 
-## Additional information dataset
+# Additional information dataset
 
-#### 1 Distribution of the descriptive stats
+## 1 Distribution of the descriptive stats
 
 ```{r}
 p_additional
 ```
 
-#### 2 Correlation in additional dataset
+## 2 Correlation in additional dataset
 
 ```{r}
 corrplot(cor_, type="upper", order="hclust", p.mat = p.mat, sig.level = 0.01, insig = "blank", tl.pos	= 'n')
 ```
 
-#### 3 PCA of additional dataset
+## 3 PCA of additional dataset
 
-#### 3.1 Plot density and boxplots
+### 3.1 Plot density and boxplots
 
 ```{r}
-data <- data_add_pca %>%
-  pivot_longer(cols = all_of(data_add_col_pca), names_to = 'PC', values_to = 'Value') %>%
-  mutate(PC_ = factor(PC, levels = data_add_col_pca))
+pca_histogram_density
 
-ggplot(data = data, aes(x = Value)) +
-  geom_histogram(aes(y=..density..), colour="black", fill="white") +
-  geom_density(alpha=.2, fill="blue") +
-  facet_wrap(vars(PC_))
-
-ggplot(data = data, aes(x = Value)) +
-  geom_boxplot() +
-  stat_boxplot(coef = 1.5, outlier.colour = 'red', outlier.alpha = 0.1) +
-  facet_wrap(vars(PC_)) +
-  theme(axis.title.y=element_blank(),
-        axis.text.y=element_blank(),
-        axis.ticks.y=element_blank())
+pca_boxplot
 ```

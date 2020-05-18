@@ -1,3 +1,4 @@
+# "Group E"
 
 ################################ [0] LIBRARIES #####################################
 
@@ -6,8 +7,6 @@ library(tidyverse)
 library(lubridate)
 library(data.table)
 library(outliers)
-# library(dplyr)
-# library(purrr)
 
 # Descriptive
 library(ggplot2)
@@ -23,7 +22,6 @@ library(leaflet)
 library(leaflet.extras)
 library(sf)
 library(ggmap)
-# library(gdtools)
 
 # Calculations
 library(caret)
@@ -130,11 +128,7 @@ data_solar_produ_scores <- lapply(data_solar_col_produ, function(x) scores(data_
 names(data_solar_produ_scores) <- data_solar_col_produ
 solar_data_outlier_skim <- skim(data_solar_produ_scores)
 
-# summary(unlist(data_solar_produ_scores))
-solar_data_outlier_hist <- hist(unlist(data_solar_produ_scores))
-
 solar_data_outlier_table <- 
-  
 table(
   abs(unlist(data_solar_produ_scores))>=3
 )
@@ -332,7 +326,8 @@ data <- data_solar_train %>%
 map_stations <- leaflet(data = data) %>%
   addTiles() %>%
   addMarkers(lng=~elon, lat=~nlat,
-             popup = ~paste(round(ValueMean/1e6, 0), "Million"), label = ~WeatherStation,
+             popup = ~paste("Station", WeatherStation, "has", round(ValueMean/1e6, 0), "million of production"), 
+             label = ~WeatherStation,
              clusterOptions = markerClusterOptions())
 
 ##################################### [7.2] HEATMAP #####################################
@@ -346,11 +341,14 @@ data <- data_solar_train %>%
 
 map_production <- leaflet(data = data) %>%
   addTiles() %>%
-  addCircleMarkers(lng=~elon, lat=~nlat, group = 'data_solar') %>% 
+  addCircleMarkers(lng=~elon, lat=~nlat, group = 'data_solar',
+                   popup = ~paste("Station", WeatherStation, "has", round(ValueMean/1e6, 0), "million of production"), 
+                   label = ~WeatherStation) %>% 
   addHeatmap(lng = ~elon, lat = ~nlat, intensity = ~ValueMean, blur = 90, max = 0.05, radius = 60)
 
 ##################################### [7.3] SEASONAL DECOMPOSITION #####################################
 # Deactivated, to speed up the code execution
+# A copy of this plot it's being used in the Shyny app
 
 # top_ <- 5
 # 
@@ -471,6 +469,7 @@ p_predictor_boxplot <- ggplot(data = data, aes(x = Value)) +
 
 ##################################### [10]VARIABLE IMPORTANCE #####################################
 # Deactivated, to speed up the code execution
+# The output of this chunk it's being sourced.
 
 # top_ <- 98
 # 
