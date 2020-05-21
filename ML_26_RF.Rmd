@@ -328,6 +328,7 @@ http://www.quintuitive.com/2016/09/25/better-model-selection-evolving-models/
 https://machinelearningmastery.com/pre-process-your-dataset-in-r/
 
 ```{r}
+
 model_result <- function(model_train, data_train, data_val) {
   # Get model predictions
   predictions_train <- predict(model_train, newdata = data_train)
@@ -615,4 +616,5 @@ write.table(x = out, file = '~/Downloads/rf_out_1.csv', sep = ',', dec = '.', ro
 # 
 # rm(list=c('predict_fun', 'out', 'data'))
 ```
+
 

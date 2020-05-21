@@ -18,6 +18,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(tidyverse)
 library(data.table)
 library(lubridate)
+library(dplyr)
 
 # Descriptive
 library(skimr)
@@ -68,10 +69,10 @@ data_solar <- data_solar[j = Date2 := as.Date(x = Date, format = "%Y%m%d")]
 # Add date conversions
 data_solar <- data_solar %>% 
   mutate(Year = year(Date2),
-         Month = month(Date2, label = TRUE),
-         Day = day(Date2),
-         Day_Of_Year = yday(Date2),
-         Day_Of_Week = wday(Date2, label = TRUE, week_start = 1),
+         Month = lubridate::month(Date2, label = TRUE),
+         Day = lubridate::day(Date2),
+         Day_Of_Year = lubridate::yday(Date2),
+         Day_Of_Week = lubridate::wday(Date2, label = TRUE, week_start = 1),
          Days_Since_Origin = time_length(interval(origin, Date2), unit = 'day')) %>% 
   as.data.table(.)
 
@@ -303,7 +304,7 @@ Using 'filterVarImp'
 # stopCluster(cl)
 
 # saveRDS(data_col_importance, file.path('storage', 'data_col_importance4_lag.rds'))
-data_col_importance <- readRDS(file.path('storage', 'data_col_importance4_lag.rds'))
+data_col_importance <- readRDS('~/Downloads/data_col_importance4_lag.rds')
 # data_col_importance[1]
 # rm(list=c('cl', 'select_important', 'time_importance', 'data'))
 ```
@@ -341,7 +342,6 @@ model_result <- function(model_train, data_train, data_val) {
   # Personal metrics
   mae_ratio = mae_val/mae_train
   fitting = ifelse(mae_ratio<1, 'Underfitting', ifelse(mae_ratio==0, 'Fit', 'Overfitting'))
-  # Combining the results
   result_combined <- tibble(mse_train, mse_val, mae_train, mae_val, mae_ratio, fitting)
   # Quick plot for 'Test'
   result_plot <- ggplot() +
