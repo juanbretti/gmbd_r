@@ -224,18 +224,38 @@ res_df
 
 ### build the model with optimal lambda for each station
 ```{r}
+cols <- colnames(data_solar_predi_train)
+final_predictors <- final_predictors[,cols]
+
+final_res <- data.frame(data_solar[5114:nrow(data_solar),1])
+
 
 library(glmnet)
-x_train <- model.matrix(unlist(data_solar_add_train[1],use.names = FALSE) ~ ., data_solar_predi_train)
-y_train <- unlist(data_solar_add_train[1], use.names = FALSE)
 
-x_test <- model.matrix(unlist(final_targets[1],use.names = FALSE) ~ ., final_predictors)
-# y_test <- unlist(final_targets[1], use.names = FALSE)
+for (i in 1:ncol(data_solar_add_train)){
+  x_train <- data.matrix(data_solar_predi_train)
+  y_train <- unlist(data_solar_add_train[i], use.names = FALSE)
 
-ridge_best <- glmnet(x_train, y_train, alpha = 0, lambda = opt_lambda, standardize = TRUE)
-prediction <- predict(object = ridge_best,newx = x_test)
+  x_test <- data.matrix(final_predictors)
+  # y_test <- unlist(final_targets[1], use.names = FALSE)
 
-# final_res <- cbind()
+  ridge_best <- glmnet(x_train, y_train, alpha = 0, lambda = opt_lambda, standardize = TRUE)
+  prediction <- predict(object = ridge_best,newx = x_test)
+  final_res <- cbind(final_res, 
+                     prediction
+                     )
+}
 
 
 ```
+
+
+```{r}
+names <- c("Date",colnames(data_solar_add_train))
+colnames(final_res) <- names
+```
+
+```{r}
+write.table(x = final_res, file = '~/Downloads/ridge.csv', sep = ',', dec = '.', row.names = FALSE, quote = FALSE)
+```
+
