@@ -46,87 +46,8 @@ library(doParallel)
 ```{r}
 num_clusters <- 8
 num_lag <- 30
-num_times <- 5
+num_times <- 1
 num_col_importance <- 300
-case_name <- '33_300_v2'
-case_save <- FALSE
-case_read <- TRUE
-clean_variables <- TRUE
-```
-
-# Functions
-
-## Assign the clusters
-Calculates the mean per cluster.
-
-```{r}
-cluster_mean <- function(cluster_num, data = data_solar_add_train_val) {
-  clustered <- names(data_clusters$cluster[data_clusters$cluster == cluster_num])
-  
-  mean_ <- data %>% 
-    select('Date2', all_of(clustered)) %>% 
-    pivot_longer(cols = all_of(clustered), names_to = 'WeatherStation', values_to = 'Value') %>%
-    group_by(Date2) %>% 
-    summarise(Cluster = mean(Value))
-  
-  data <- mean_ %>% 
-   bind_cols(
-     data %>%
-       select(all_of(c(data_solar_col_predi, data_add_col))))
-  
-  return(list(
-    clustered = clustered,
-    mean = mean_,
-    data = data
-  ))
-}
-```
-
-## Name to the clustes after an integer
-
-```{r}
-cluster_name <- function(x){
-  paste('Cluster', x, sep = "_")
-}
-```
-
-## Save a variable
-
-```{r}
-var_save <- function(x, s = case_save) {
-  if(s) {
-    name_ <- paste0(x, '_', case_name, '.rds')
-    saveRDS(get(x), file.path('storage', name_))
-    print(paste("Saved", x, '>>',  name_))
-  }
-}
-
-var_read <- function(x, r = case_read) {
-  if(r) {
-    name_ <- paste0(x, '_', case_name, '.rds')
-    assign(x, readRDS(file = file.path('storage', name_)), envir = .GlobalEnv)
-    print(paste("Read", name_, '>>', x))
-  }
-}
-```
-
-## Add lag to the datasets
-Adds lag in the cluster production column, defined by the number of rows (days) to lag, and how many times.
-The maximum lag will be defined by 'num_lag*num_times'
-
-```{r}
-add_lag <- function(data, num_lag, num_times, col = 'Cluster') {
-  col_list <- NULL
-  for (i in 1:num_times){
-      varname <- paste(col, "lag", num_lag*i , sep="_")
-      col_list <- c(col_list, varname)
-      data[[varname]] <- lag(data[[col]], num_lag*i)
-   }
-  data <- data[((num_lag*num_times)+1):nrow(data), ]
-  return(list(
-    data=data,
-    columns=col_list))
-}
 ```
 
 # Load data
@@ -138,7 +59,6 @@ data_add <- readRDS(file = file.path('data', 'additional_variables.RData'))
 ```
 
 ## Transform data
-Apply some transformations to the data.
 
 ```{r}
 # Source dataset
@@ -165,7 +85,6 @@ data_add_col_dates <- setdiff(colnames(data_add), data_add_col)
 ```
 
 ## Complete data_add
-Using the 'mice' library.
 
 ```{r}
 data <- select(data_add, all_of(data_add_col))
@@ -174,10 +93,10 @@ m_ <- 5
 n_imp_core <- 5
 n_cores <- detectCores()
 
-data_mice_ <- parlmice(data, m=m_, n.imp.core = n_imp_core, meth='pmm', cluster.seed=500, n.core = n_cores)
-# Save variable
-var_save('data_mice_')
-var_read('data_mice_')
+# data_mice_ <- parlmice(data, m=m_, n.imp.core = n_imp_core, meth='pmm', cluster.seed=500, n.core = n_cores)
+# saveRDS(data_mice_, file.path('storage', 'data_add_mice_33_300.rds'))
+data_mice_ <- readRDS(file.path('storage', 'data_add_mice_33_300.rds'))
+
 # Average of all the Multivariate Imputation
 num_mice_iterations <- m_*n_cores
 data_mice <- 0
@@ -187,23 +106,20 @@ data_mice <- data_mice/num_mice_iterations
 data_add_mice <- bind_cols(select(data_add, all_of(data_add_col_dates)), data_mice)
 
 # Cleanup
-if(clean_variables) rm(list = c('data', 'data_mice_', 'm_', 'n_imp_core', 'i', 'data_mice', 'data_add', 'num_mice_iterations', 'n_cores'))
+# rm(list = c('data', 'data_mice_', 'm_', 'maxit_', 'i', 'data_mice', 'data_add', 'num_mice_iterations'))
 ```
 
-## Join datasets
-Merge the tables
+# Join datasets
 
 ```{r}
 data_solar_add <- data_solar %>% 
   left_join(data_add_mice, by = 'Date', suffix = c("_solar", "_add"))
 
-# Cleanup
-if(clean_variables) rm(list = c('data_solar', 'data_add_mice'))
+# rm(list = c('data_solar', 'data_add_mice'))
 ```
 
 # Clustering
 ## Preparing data
-Preparing the data for the clustering.
 
 ```{r}
 data_solar_add_train_ <- data_solar_add[1:5113, ]
@@ -248,29 +164,29 @@ data <- predict(object = pre_, newdata = data_solar_description) %>%
 ```
 
 ## Selecting the number of clusters
-Using the proposed analysis done at the following source:
+
 https://www.datanovia.com/en/lessons/determining-the-optimal-number-of-clusters-3-must-know-methods/
 
 ```{r}
-# Elbow method
-p_elbow <- fviz_nbclust(data, kmeans, method = "wss") +
-    geom_vline(xintercept = 8, linetype = 2)+
-  labs(subtitle = "Elbow method")
-
-# Silhouette method
-p_silhouette <- fviz_nbclust(data, kmeans, method = "silhouette")+
-  labs(subtitle = "Silhouette method")
-
-# Gap statistic
-set.seed(123)
-p_gap_statistic <- fviz_nbclust(data, kmeans, nstart = 25,  method = "gap_stat", nboot = 500)+
-  labs(subtitle = "Gap statistic method")
-
-ggarrange(ggarrange(p_elbow, p_silhouette, ncol = 2), p_gap_statistic, nrow = 2)
+# # Elbow method
+# p_elbow <- fviz_nbclust(data, kmeans, method = "wss") +
+#     geom_vline(xintercept = 4, linetype = 2)+
+#   labs(subtitle = "Elbow method")
+# 
+# # Silhouette method
+# p_silhouette <- fviz_nbclust(data, kmeans, method = "silhouette")+
+#   labs(subtitle = "Silhouette method")
+# 
+# # Gap statistic
+# set.seed(123)
+# p_gap_statistic <- fviz_nbclust(data, kmeans, nstart = 25,  method = "gap_stat", nboot = 500)+
+#   labs(subtitle = "Gap statistic method")
+# 
+# ggarrange(ggarrange(p_elbow, p_silhouette, ncol = 2), p_gap_statistic, nrow = 2)
 ```
 
 ## Plot the clusters of stations
-Selected `r num_clusters` clustes, based on the graphical analysis, and public information regarding this methodology.
+Selected `r num_clusters` clustes
 
 ```{r}
 # Compute k-means clustering with k = num_clusters
@@ -279,11 +195,10 @@ data_clusters <- kmeans(data, num_clusters, nstart = 25)
 fviz_cluster(data_clusters, data = data)
 
 # Cleanup
-if(clean_variables) rm(list = c('data', 'p_elbow', 'p_silhouette', 'p_gap_statistic', 'pre_', 'data_solar_add_train_', 'data_solar_description', 'data_solar_description_last_year'))
+# rm(list = c('data', 'p_elbow', 'p_silhouette', 'p_gap_statistic', 'pre_', 'data_solar_add_train_'))
 ```
 
 # Train, validation, test and predict split
-We are using the rule, 70% for training, 15% for the validation and the reminder (15%) for the testing.
 
 ```{r}
 data_solar_add_train_ <- data_solar_add[1:5113, ]
@@ -301,12 +216,63 @@ index_test <- (nrow_train+nrow_val)+(1:nrow_test)
 data_solar_add_train_val <- data_solar_add_train_[c(index_train, index_val), ]
 data_solar_add_test <- data_solar_add_train_[index_test, ]
 
-# Cleanup
-if(clean_variables) rm(list=c('nrow_train', 'nrow_val', 'nrow_test', 'data_solar_add_train_'))
+# rm(list=c('nrow_train', 'nrow_val', 'nrow_test', 'data_solar_add_train_', 'data_add_col_dates'))
+```
+
+# Functions
+
+## Assign the clusters
+
+```{r}
+cluster_mean <- function(cluster_num, data = data_solar_add_train_val) {
+  clustered <- names(data_clusters$cluster[data_clusters$cluster == cluster_num])
+  
+  mean_ <- data %>% 
+    select('Date2', all_of(clustered)) %>% 
+    pivot_longer(cols = all_of(clustered), names_to = 'WeatherStation', values_to = 'Value') %>%
+    group_by(Date2) %>% 
+    summarise(Cluster = mean(Value))
+  
+  data <- mean_ %>% 
+   bind_cols(
+     data %>%
+       select(all_of(c(data_solar_col_predi, data_add_col))))
+  
+  return(list(
+    clustered = clustered,
+    mean = mean_,
+    data = data
+  ))
+}
+```
+
+## Name to the clustes after an integer
+
+```{r}
+cluster_name <- function(x){
+  paste('Cluster', x, sep = "_")
+}
+```
+
+## Add lag to the datasets
+
+```{r}
+add_lag <- function(data, num_lag, num_times, col = 'Cluster') {
+  col_list <- NULL
+  for (i in 1:num_times){
+      varname <- paste(col, "lag", num_lag*i , sep="_")
+      col_list <- c(col_list, varname)
+      data[[varname]] <- lag(data[[col]], num_lag*i)
+   }
+  data <- data[((num_lag*num_times)+1):nrow(data), ]
+  return(list(
+    data=data,
+    columns=col_list))
+}
 ```
 
 # Variable importance
-Using 'caret::filterVarImp'
+Using 'filterVarImp'
 
 ```{r}
 cl<-makeCluster(detectCores())
@@ -337,26 +303,33 @@ names(data_col_importance) <- cluster_name(1:num_clusters)
 print(time_importance)
 stopCluster(cl)
 
-var_save('data_col_importance')
-var_read('data_col_importance')
-# Cleanup
-if(clean_variables) rm(list=c('cl', 'select_important', 'time_importance'))
+saveRDS(data_col_importance, file.path('storage', 'data_col_importance_lag_36_lag30times12_40.rds'))
+# data_col_importance <- readRDS(file.path('storage', 'data_col_importance_lag_36_lag30times12_40.rds'))
+
+# rm(list=c('cl', 'select_important', 'time_importance', 'data'))
 ```
 
 # Hyperparameter optimization
-Using 'caret' library.
-It's being created one model per 'Clusters'.
-It's being tune the hyperparameter per cluster
-
-Supporting code:
+Using caret library, for all the 'WeatherStations'
+Caret
+https://topepo.github.io/caret/data-splitting.html
 https://topepo.github.io/caret/available-models.html
 https://github.com/topepo/caret/blob/master/models/files/svmRadialSigma.R
+https://github.com/topepo/caret/blob/master/models/files/xgbLinear.R
+https://github.com/topepo/caret/blob/master/models/files/xgbDART.R
 https://stackoverflow.com/questions/23351923/r-caret-how-do-i-specify-train-and-holdout-validation-sets
+
+Others
 https://xgboost.readthedocs.io/en/latest/parameter.html
+https://github.com/lucaseustaquio/ams-2013-2014-solar-energy/blob/master/ams-2013-2014-R/
+https://stackoverflow.com/questions/30233144/time-series-splitting-data-using-the-timeslice-method
+https://robjhyndman.com/hyndsight/tscv/
+http://www.quintuitive.com/2016/09/25/better-model-selection-evolving-models/
+https://machinelearningmastery.com/pre-process-your-dataset-in-r/
 
 ```{r}
 model_train <- function(cluster) {
-  print(paste('Tune', cluster_name(cluster), Sys.time()))
+  print(paste('Train', cluster_name(cluster), Sys.time()))
   
   # Columns to use, depending on the 'num_col_importance'
   col_importance <- data_col_importance[[cluster_name(cluster)]][1:num_col_importance]
@@ -367,18 +340,15 @@ model_train <- function(cluster) {
     .$data %>% 
     select('Cluster', all_of(col_importance))
   
-  # Using the following method, 'caret', holds the 'indexOut' for validation
-  ctrl <- trainControl(index = list(rs1 = index_train[1:(max(index_train)-num_lag*num_times)]), # Train rows
-                       indexOut = list(rs1 = as.integer(index_val-num_lag*num_times))) # Validation rows
+  ctrl <- trainControl(index = list(rs1 = index_train[1:(max(index_train)-num_lag*num_times)]), #train on
+                       indexOut = list(rs1 = as.integer(index_val-num_lag*num_times))) #val on
 
   # Call the training
-  # The size of the grid search for the hyperparameter tunning, is defined by 'tuneLength'
-  # More information at https://github.com/topepo/caret/blob/master/models/files/svmRadialSigma.R
   set.seed(42)
   model <- caret::train(Cluster ~ .,
               data = data_train_val,
-              method = "svmRadialSigma",
-              tuneLength = 40,
+              method = "svmPoly",
+              tuneLength = 5,
               trControl = ctrl,
               metric = "RMSE",
               preProcess = c('center', 'scale'))
@@ -399,19 +369,22 @@ registerDoParallel(cl)
 stopCluster(cl)
 names(model_trained) <- cluster_name(1:num_clusters)
 
-var_save('model_trained')
-var_read('model_trained')
-# Cleanup
-if(clean_variables) rm(list=c('cl', 'model_result', 'model_trained'))
+saveRDS(model_trained, file.path('storage', 'model_trained_36_lag30times12_40.rds'))
+# model_trained <- readRDS(file.path('storage', 'model_trained_36_lag30times12_40.rds'))
+
+# rm(list=c('cl', 'model_train', 'model_result'))
 ```
 
 # Submission File
-Submission URL: https://www.kaggle.com/c/ams-2014-solar-energy-prediction-contest/submit
-Professor results: https://campus.ie.edu/webapps/discussionboard/do/message?action=list_messages&course_id=_114320331_1&nav=discussion_board_entry&conf_id=_251223_1&forum_id=_112829_1&message_id=_4658342_1
-
-The prediction function, takes into account the lagging of the production.
+Submission: https://www.kaggle.com/c/ams-2014-solar-energy-prediction-contest/submit
+Leaderboard: https://www.kaggle.com/c/ams-2014-solar-energy-prediction-contest/leaderboard#score
+Jesús: https://campus.ie.edu/webapps/discussionboard/do/message?action=list_messages&course_id=_114320331_1&nav=discussion_board_entry&conf_id=_251223_1&forum_id=_112829_1&message_id=_4658342_1
 
 ```{r}
+# data <- data$data
+# cluster <- 1
+# row_to_predict <- 5114
+
 predict_fun <- function(data, row_to_predict, cluster) {
 
   rows_lag <- num_lag*num_times
@@ -428,6 +401,11 @@ predict_fun <- function(data, row_to_predict, cluster) {
   return(value_predicted)
   
 }
+
+# cluster_ <- 1
+# row_to_predict <- row_ <- 5114
+# data <- data$data
+# https://stackoverflow.com/questions/8753531/repeat-rows-of-a-data-frame-n-times
 
 system.time({
 final <- data_solar_add['Date']
@@ -447,10 +425,11 @@ out <- final %>%
   dplyr::select('Date', all_of(data_solar_col_produ)) %>% 
   dplyr::slice(5114:n())
 
+saveRDS(out, file.path('storage', 'out_36_lag30times12_40.rds'))
+# out <- readRDS(file.path('storage', 'out_36_lag30times12_40.rds'))
+
 write.table(x = out, file = file.path('storage', 'out.csv'), sep = ',', dec = '.', row.names = FALSE, quote = FALSE)
 
-var_save('out')
-var_read('out')
-# Cleanup
-if(clean_variables) rm(list=c('predict_fun', 'out', 'data'))
+# rm(list=c('predict_fun', 'out', 'data'))
 ```
+

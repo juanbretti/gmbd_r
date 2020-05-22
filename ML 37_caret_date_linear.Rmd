@@ -48,10 +48,10 @@ num_clusters <- 8
 num_lag <- 30
 num_times <- 5
 num_col_importance <- 300
-case_name <- '33_300_v2'
-case_save <- FALSE
-case_read <- TRUE
-clean_variables <- TRUE
+case_name <- '37_caret_date_linear'
+case_save <- TRUE
+case_read <- FALSE
+clean_variables <- FALSE
 ```
 
 # Functions
@@ -72,7 +72,7 @@ cluster_mean <- function(cluster_num, data = data_solar_add_train_val) {
   data <- mean_ %>% 
    bind_cols(
      data %>%
-       select(all_of(c(data_solar_col_predi, data_add_col))))
+       select(-any_of(c('Date2', data_solar_col_produ))))
   
   return(list(
     clustered = clustered,
@@ -177,7 +177,7 @@ n_cores <- detectCores()
 data_mice_ <- parlmice(data, m=m_, n.imp.core = n_imp_core, meth='pmm', cluster.seed=500, n.core = n_cores)
 # Save variable
 var_save('data_mice_')
-var_read('data_mice_')
+var_read('data_mice_', TRUE)
 # Average of all the Multivariate Imputation
 num_mice_iterations <- m_*n_cores
 data_mice <- 0
@@ -195,7 +195,7 @@ Merge the tables
 
 ```{r}
 data_solar_add <- data_solar %>% 
-  left_join(data_add_mice, by = 'Date', suffix = c("_solar", "_add"))
+  left_join(data_add_mice, by = c('Date'), suffix = c("_solar", "_add"))
 
 # Cleanup
 if(clean_variables) rm(list = c('data_solar', 'data_add_mice'))
@@ -326,8 +326,7 @@ data_col_importance <- foreach (cluster = 1:num_clusters, .packages=(.packages()
                                       .$data %>%
                                       add_lag(num_lag, num_times, col='Cluster')
 
-                                    out <- select_important(dat=select(data$data, all_of(c(data_solar_col_predi, data_add_col, data$columns))),
-                                                     y = data$data$Cluster)
+                                    out <- select_important(dat=select(data$data, -all_of(c('Date2', 'Date'))), y = data$data$Cluster)
                                     return(out)
                                     }
 })
@@ -377,8 +376,8 @@ model_train <- function(cluster) {
   set.seed(42)
   model <- caret::train(Cluster ~ .,
               data = data_train_val,
-              method = "svmRadialSigma",
-              tuneLength = 40,
+              method = "svmLinear",
+              tuneLength = 3,
               trControl = ctrl,
               metric = "RMSE",
               preProcess = c('center', 'scale'))
@@ -395,7 +394,9 @@ model_train <- function(cluster) {
 # Parallel grid search
 cl<-makeCluster(detectCores())
 registerDoParallel(cl)
+system.time({
   model_trained <- lapply(1:num_clusters, function(x) model_train(x))
+})
 stopCluster(cl)
 names(model_trained) <- cluster_name(1:num_clusters)
 
